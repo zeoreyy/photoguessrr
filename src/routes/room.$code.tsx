@@ -1,0 +1,617 @@
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, Copy, MapPin, Trash2, Check, Camera, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { getPlayerId } from "@/lib/playerSession";
+import { GameMap } from "@/components/MapView";
+import { scoreFor, scopeDiagKm, haversine, type RoomConfig } from "@/lib/game";
+
+export const Route = createFileRoute("/room/$code")({
+  head: () => ({
+    meta: [
+      { title: "Room — PhotoGuessr" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: RoomPage,
+});
+
+type Room = {
+  id: string; code: string; host_id: string; state: string;
+  current_round: number; config: RoomConfig;
+};
+type Player = { id: string; room_id: string; nickname: string; is_host: boolean; is_ready: boolean; color: string | null };
+type Photo = {
+  id: string; room_id: string; player_id: string; storage_path: string;
+  latitude: number | null; longitude: number | null; is_pinned: boolean; confirmed: boolean;
+};
+type Round = { id: string; room_id: string; round_number: number; photo_id: string | null; started_at: string | null; ended_at: string | null };
+type Guess = { id: string; round_id: string; player_id: string; latitude: number; longitude: number; distance_km: number | null; points: number | null; is_submitter: boolean };
+
+function publicUrl(path: string) {
+  return supabase.storage.from("photos").getPublicUrl(path).data.publicUrl;
+}
+
+function RoomPage() {
+  const { code } = Route.useParams();
+  const navigate = useNavigate();
+  const playerId = getPlayerId();
+
+  const [room, setRoom] = useState<Room | null>(null);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [rounds, setRounds] = useState<Round[]>([]);
+  const [guesses, setGuesses] = useState<Guess[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  const me = players.find((p) => p.id === playerId);
+  const isHost = !!me?.is_host;
+
+  // initial load
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data: r } = await supabase.from("rooms").select("*").eq("code", code).maybeSingle();
+      if (!active) return;
+      if (!r) { setNotFound(true); setLoading(false); return; }
+      setRoom(r as unknown as Room);
+      const [{ data: ps }, { data: phs }, { data: rs }, { data: gs }] = await Promise.all([
+        supabase.from("players").select("*").eq("room_id", r.id).order("joined_at"),
+        supabase.from("photos").select("*").eq("room_id", r.id),
+        supabase.from("rounds").select("*").eq("room_id", r.id).order("round_number"),
+        supabase.from("guesses").select("*"),
+      ]);
+      if (!active) return;
+      setPlayers((ps ?? []) as Player[]);
+      setPhotos((phs ?? []) as Photo[]);
+      setRounds((rs ?? []) as Round[]);
+      const roundIds = (rs ?? []).map((x) => x.id);
+      setGuesses(((gs ?? []) as Guess[]).filter((g) => roundIds.includes(g.round_id)));
+      setLoading(false);
+    })();
+    return () => { active = false; };
+  }, [code]);
+
+  // realtime
+  useEffect(() => {
+    if (!room) return;
+    const ch = supabase
+      .channel(`room-${room.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "rooms", filter: `id=eq.${room.id}` },
+        (p) => { if (p.eventType === "DELETE") { navigate({ to: "/" }); return; } setRoom(p.new as unknown as Room); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "players", filter: `room_id=eq.${room.id}` },
+        (p) => {
+          setPlayers((prev) => {
+            if (p.eventType === "INSERT") return [...prev, p.new as Player];
+            if (p.eventType === "UPDATE") return prev.map((x) => x.id === (p.new as Player).id ? p.new as Player : x);
+            if (p.eventType === "DELETE") return prev.filter((x) => x.id !== (p.old as Player).id);
+            return prev;
+          });
+        })
+      .on("postgres_changes", { event: "*", schema: "public", table: "photos", filter: `room_id=eq.${room.id}` },
+        (p) => {
+          setPhotos((prev) => {
+            if (p.eventType === "INSERT") return [...prev, p.new as Photo];
+            if (p.eventType === "UPDATE") return prev.map((x) => x.id === (p.new as Photo).id ? p.new as Photo : x);
+            if (p.eventType === "DELETE") return prev.filter((x) => x.id !== (p.old as Photo).id);
+            return prev;
+          });
+        })
+      .on("postgres_changes", { event: "*", schema: "public", table: "rounds", filter: `room_id=eq.${room.id}` },
+        (p) => {
+          setRounds((prev) => {
+            if (p.eventType === "INSERT") return [...prev, p.new as Round].sort((a, b) => a.round_number - b.round_number);
+            if (p.eventType === "UPDATE") return prev.map((x) => x.id === (p.new as Round).id ? p.new as Round : x);
+            if (p.eventType === "DELETE") return prev.filter((x) => x.id !== (p.old as Round).id);
+            return prev;
+          });
+        })
+      .on("postgres_changes", { event: "*", schema: "public", table: "guesses" },
+        (p) => {
+          setGuesses((prev) => {
+            if (p.eventType === "INSERT") return [...prev, p.new as Guess];
+            if (p.eventType === "UPDATE") return prev.map((x) => x.id === (p.new as Guess).id ? p.new as Guess : x);
+            if (p.eventType === "DELETE") return prev.filter((x) => x.id !== (p.old as Guess).id);
+            return prev;
+          });
+        })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [room?.id, navigate]);
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><Loader2 className="animate-spin" /></div>;
+  if (notFound) return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+      <div className="text-center">
+        <p className="mb-4">Room not found.</p>
+        <Link to="/" className="text-sky-400 underline">Go home</Link>
+      </div>
+    </div>
+  );
+  if (!room || !me) return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+      <div className="text-center">
+        <p className="mb-4">You're not in this room.</p>
+        <Link to="/" className="text-sky-400 underline">Go home</Link>
+      </div>
+    </div>
+  );
+
+  if (room.state === "lobby") return <LobbyView room={room} players={players} photos={photos} me={me} isHost={isHost} />;
+  if (room.state === "playing") return <GameView room={room} players={players} photos={photos} rounds={rounds} guesses={guesses} me={me} isHost={isHost} />;
+  if (room.state === "finished") return <FinalView room={room} players={players} photos={photos} rounds={rounds} guesses={guesses} isHost={isHost} />;
+  return null;
+}
+
+/* ================= LOBBY ================= */
+
+function LobbyView({ room, players, photos, me, isHost }: { room: Room; players: Player[]; photos: Photo[]; me: Player; isHost: boolean }) {
+  const myPhotos = photos.filter((p) => p.player_id === me.id);
+  const target = room.config.photos_per_player;
+  const allReady = players.length > 0 && players.every((p) => p.is_ready);
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(room.code);
+    toast.success("Room code copied");
+  };
+
+  const startGame = async () => {
+    // build rounds
+    const N = players.length, R = room.config.total_rounds;
+    const base = Math.floor(R / N);
+    const remainder = R % N;
+    const shuffled = [...players].sort(() => Math.random() - 0.5);
+    const counts = new Map(shuffled.map((p, i) => [p.id, base + (i < remainder ? 1 : 0)]));
+    const chosen: Photo[] = [];
+    for (const p of players) {
+      const pool = photos.filter((ph) => ph.player_id === p.id && ph.is_pinned);
+      const need = counts.get(p.id) ?? 0;
+      const picked = pool.sort(() => Math.random() - 0.5).slice(0, need);
+      if (picked.length < need) { toast.error(`${p.nickname} doesn't have enough pinned photos`); return; }
+      chosen.push(...picked);
+    }
+    chosen.sort(() => Math.random() - 0.5);
+    const roundRows = chosen.map((ph, i) => ({
+      room_id: room.id, round_number: i + 1, photo_id: ph.id,
+    }));
+    const { error: rErr } = await supabase.from("rounds").insert(roundRows);
+    if (rErr) { toast.error(rErr.message); return; }
+    // start round 1
+    await supabase.from("rounds").update({ started_at: new Date().toISOString() })
+      .eq("room_id", room.id).eq("round_number", 1);
+    await supabase.from("rooms").update({ state: "playing", current_round: 1 }).eq("id", room.id);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white px-4 py-6">
+      <div className="max-w-2xl mx-auto space-y-6">
+        <Link to="/" className="inline-flex items-center text-slate-400 hover:text-white text-sm">
+          <ArrowLeft className="w-4 h-4 mr-1" /> Leave
+        </Link>
+
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-6 text-center">
+          <p className="text-xs uppercase tracking-widest text-slate-400 mb-2">Room code</p>
+          <button onClick={copyCode} className="inline-flex items-center gap-3 group">
+            <span className="text-5xl font-bold tracking-[0.4em] text-sky-400 group-hover:text-sky-300">{room.code}</span>
+            <Copy className="w-5 h-5 text-slate-400 group-hover:text-white" />
+          </button>
+          <p className="text-xs text-slate-500 mt-2">Tap to copy. Share with friends.</p>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <h2 className="font-semibold mb-3 text-slate-300">Players</h2>
+          <div className="space-y-2">
+            {players.map((p) => {
+              const count = photos.filter((ph) => ph.player_id === p.id && ph.is_pinned).length;
+              return (
+                <div key={p.id} className="flex items-center justify-between bg-slate-800/60 rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full" style={{ background: p.color ?? "#888" }} />
+                    <span className="font-medium">{p.nickname}</span>
+                    {p.is_host && <span className="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">HOST</span>}
+                    {p.is_ready && <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">READY</span>}
+                  </div>
+                  <span className="text-sm text-slate-400">{count}/{room.config.photos_per_player}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <UploadSection room={room} me={me} myPhotos={myPhotos} target={target} />
+
+        {isHost && (
+          <Button onClick={startGame} disabled={!allReady}
+            className="w-full h-12 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-800 disabled:text-slate-500">
+            {allReady ? "Start Game" : "Waiting for everyone to be ready…"}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function UploadSection({ room, me, myPhotos, target }: { room: Room; me: Player; myPhotos: Photo[]; target: number }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [pinModal, setPinModal] = useState<Photo | null>(null);
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files) return;
+    const remaining = target - myPhotos.length;
+    const list = Array.from(files).slice(0, remaining);
+    if (list.length === 0) { toast.error("You've reached the photo limit"); return; }
+    setUploading(true);
+    for (const file of list) {
+      try {
+        const photoId = crypto.randomUUID();
+        const path = `rooms/${room.code}/${me.id}/${photoId}.jpg`;
+        const { error: upErr } = await supabase.storage.from("photos").upload(path, file, {
+          contentType: file.type || "image/jpeg",
+          upsert: false,
+        });
+        if (upErr) { toast.error(upErr.message); continue; }
+        await supabase.from("photos").insert({
+          id: photoId, room_id: room.id, player_id: me.id, storage_path: path,
+          is_pinned: false, confirmed: false,
+        });
+      } catch (e) {
+        console.error(e);
+        toast.error("Upload failed");
+      }
+    }
+    setUploading(false);
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  const removePhoto = async (p: Photo) => {
+    await supabase.storage.from("photos").remove([p.storage_path]);
+    await supabase.from("photos").delete().eq("id", p.id);
+    if (me.is_ready) await supabase.from("players").update({ is_ready: false }).eq("id", me.id);
+  };
+
+  const allPinned = myPhotos.length === target && myPhotos.every((p) => p.is_pinned);
+
+  const toggleReady = async () => {
+    await supabase.from("players").update({ is_ready: !me.is_ready }).eq("id", me.id);
+  };
+
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-slate-300">Your photos ({myPhotos.length}/{target})</h2>
+        <Button size="sm" disabled={uploading || myPhotos.length >= target}
+          onClick={() => inputRef.current?.click()}
+          className="bg-sky-500 hover:bg-sky-600">
+          <Camera className="w-4 h-4 mr-1" /> {uploading ? "Uploading…" : "Add photos"}
+        </Button>
+        <input ref={inputRef} type="file" accept="image/*" multiple className="hidden"
+          onChange={(e) => handleFiles(e.target.files)} />
+      </div>
+
+      {myPhotos.length === 0 && (
+        <p className="text-sm text-slate-500 text-center py-6">
+          Add {target} photos. After uploading, tap each to pin where it was taken.
+        </p>
+      )}
+
+      <div className="space-y-3">
+        {myPhotos.map((p) => (
+          <div key={p.id} className="bg-slate-800/60 rounded-lg p-3 flex gap-3">
+            <img src={publicUrl(p.storage_path)} alt="" className="w-20 h-20 object-cover rounded" />
+            <div className="flex-1 min-w-0 flex flex-col justify-between">
+              <div>
+                {p.is_pinned ? (
+                  <span className="inline-flex items-center text-xs text-emerald-400">
+                    <Check className="w-3 h-3 mr-1" /> Pinned
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center text-xs text-amber-400">
+                    <MapPin className="w-3 h-3 mr-1" /> Pin required
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="border-slate-600 bg-slate-800 hover:bg-slate-700 text-white text-xs h-7"
+                  onClick={() => setPinModal(p)}>
+                  <MapPin className="w-3 h-3 mr-1" /> {p.is_pinned ? "Edit pin" : "Set pin"}
+                </Button>
+                <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs h-7"
+                  onClick={() => removePhoto(p)}>
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {myPhotos.length > 0 && (
+        <Button onClick={toggleReady} disabled={!allPinned && !me.is_ready}
+          className={me.is_ready ? "w-full bg-slate-700 hover:bg-slate-600" : "w-full bg-emerald-500 hover:bg-emerald-600"}>
+          {me.is_ready ? "I'm not ready" : allPinned ? "I'm ready" : `Pin all photos first`}
+        </Button>
+      )}
+
+      {pinModal && <PinModal photo={pinModal} onClose={() => setPinModal(null)} />}
+    </div>
+  );
+}
+
+function PinModal({ photo, onClose }: { photo: Photo; onClose: () => void }) {
+  const [pin, setPin] = useState<{ lat: number; lng: number } | null>(
+    photo.latitude != null && photo.longitude != null ? { lat: photo.latitude, lng: photo.longitude } : null
+  );
+  const save = async () => {
+    if (!pin) return;
+    await supabase.from("photos").update({
+      latitude: pin.lat, longitude: pin.lng, is_pinned: true, confirmed: true,
+    }).eq("id", photo.id);
+    onClose();
+  };
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="bg-slate-900 border-slate-800 text-white max-w-2xl">
+        <div className="space-y-3">
+          <p className="text-sm text-slate-300">Click the map to drop a pin where this photo was taken.</p>
+          <img src={publicUrl(photo.storage_path)} alt="" className="max-h-48 mx-auto rounded" />
+          <GameMap height="400px" pin={pin} pinColor="#0EA5E9"
+            onClick={(lat, lng) => setPin({ lat, lng })} />
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={onClose} className="border-slate-700 bg-slate-800">Cancel</Button>
+            <Button onClick={save} disabled={!pin} className="bg-emerald-500 hover:bg-emerald-600">Save pin</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ================= GAME ================= */
+
+function GameView({ room, players, photos, rounds, guesses, me, isHost }:
+  { room: Room; players: Player[]; photos: Photo[]; rounds: Round[]; guesses: Guess[]; me: Player; isHost: boolean }) {
+  const round = rounds.find((r) => r.round_number === room.current_round);
+  const photo = round && photos.find((p) => p.id === round.photo_id);
+  const submitter = photo && players.find((p) => p.id === photo.player_id);
+  const isSubmitter = photo?.player_id === me.id;
+  const roundGuesses = round ? guesses.filter((g) => g.round_id === round.id) : [];
+  const myGuess = roundGuesses.find((g) => g.player_id === me.id);
+  const isReveal = !!round?.ended_at;
+
+  const [pin, setPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [timeLeft, setTimeLeft] = useState(room.config.timer_seconds);
+  const advancingRef = useRef(false);
+
+  useEffect(() => { setPin(null); advancingRef.current = false; }, [round?.id]);
+
+  // timer
+  useEffect(() => {
+    if (!round?.started_at || isReveal) return;
+    const start = new Date(round.started_at).getTime();
+    const tick = () => {
+      const left = Math.max(0, room.config.timer_seconds - Math.floor((Date.now() - start) / 1000));
+      setTimeLeft(left);
+    };
+    tick();
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [round?.started_at, room.config.timer_seconds, isReveal]);
+
+  // round end check (host drives)
+  useEffect(() => {
+    if (!isHost || !round || isReveal) return;
+    const nonSubmitters = players.filter((p) => p.id !== photo?.player_id);
+    const allSubmitted = nonSubmitters.length > 0 && nonSubmitters.every((p) =>
+      roundGuesses.some((g) => g.player_id === p.id));
+    if ((timeLeft === 0 || allSubmitted) && !advancingRef.current) {
+      advancingRef.current = true;
+      endRound();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft, roundGuesses.length, isHost, round?.id, isReveal]);
+
+  const endRound = async () => {
+    if (!round || !photo) return;
+    await supabase.from("rounds").update({ ended_at: new Date().toISOString() }).eq("id", round.id);
+  };
+
+  const submitGuess = async () => {
+    if (!round || !photo || !pin) return;
+    let dist: number | null = null;
+    let pts: number | null = null;
+    if (photo.latitude != null && photo.longitude != null) {
+      dist = haversine(pin.lat, pin.lng, photo.latitude, photo.longitude);
+      pts = isSubmitter ? 0 : scoreFor(dist, scopeDiagKm(room.config.map_scope));
+    }
+    await supabase.from("guesses").insert({
+      round_id: round.id, player_id: me.id,
+      latitude: pin.lat, longitude: pin.lng,
+      distance_km: dist, points: pts, is_submitter: isSubmitter,
+    });
+  };
+
+  const nextRound = async () => {
+    if (!isHost) return;
+    const next = room.current_round + 1;
+    if (next > room.config.total_rounds) {
+      await supabase.from("rooms").update({ state: "finished" }).eq("id", room.id);
+    } else {
+      await supabase.from("rounds").update({ started_at: new Date().toISOString() })
+        .eq("room_id", room.id).eq("round_number", next);
+      await supabase.from("rooms").update({ current_round: next }).eq("id", room.id);
+    }
+  };
+
+  if (!round || !photo) return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><Loader2 className="animate-spin" /></div>;
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white px-4 py-4">
+      <div className="max-w-3xl mx-auto space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-slate-400">Round {room.current_round} of {room.config.total_rounds}</span>
+          {!isReveal && (
+            <span className={`font-mono text-lg ${timeLeft <= 5 ? "text-red-400" : "text-sky-400"}`}>
+              {timeLeft}s
+            </span>
+          )}
+        </div>
+
+        {isSubmitter && !isReveal && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 text-sm text-amber-200">
+            📸 This is your photo — your guess won't count this round.
+          </div>
+        )}
+
+        <img src={publicUrl(photo.storage_path)} alt="" className="w-full max-h-[45vh] object-contain rounded-lg bg-slate-900" />
+
+        {isReveal ? (
+          <RevealView room={room} round={round} photo={photo} players={players}
+            guesses={roundGuesses} submitter={submitter} isHost={isHost} onNext={nextRound} />
+        ) : (
+          <>
+            <GameMap height="380px" pin={pin} pinColor={me.color ?? "#0EA5E9"}
+              onClick={(lat, lng) => !myGuess && setPin({ lat, lng })} />
+            {myGuess ? (
+              <Button disabled className="w-full bg-slate-800 text-slate-400">Waiting for others…</Button>
+            ) : (
+              <Button onClick={submitGuess} disabled={!pin}
+                className="w-full h-12 bg-sky-500 hover:bg-sky-600 disabled:bg-slate-800 disabled:text-slate-500">
+                Submit guess
+              </Button>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RevealView({ room, round, photo, players, guesses, submitter, isHost, onNext }:
+  { room: Room; round: Round; photo: Photo; players: Player[]; guesses: Guess[]; submitter: Player | undefined; isHost: boolean; onNext: () => void }) {
+  const truth = (photo.latitude != null && photo.longitude != null)
+    ? { lat: photo.latitude, lng: photo.longitude } : null;
+
+  const guessMarkers = guesses.map((g) => {
+    const p = players.find((pl) => pl.id === g.player_id);
+    return { lat: g.latitude, lng: g.longitude, color: p?.color ?? "#888", label: p?.nickname ?? "?" };
+  });
+
+  // auto-advance after 10s for host
+  useEffect(() => {
+    if (!isHost) return;
+    const t = setTimeout(onNext, 10000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [round.id]);
+
+  const sorted = [...guesses]
+    .filter((g) => !g.is_submitter)
+    .sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
+
+  const isLast = room.current_round >= room.config.total_rounds;
+
+  return (
+    <div className="space-y-3">
+      <GameMap height="380px" truth={truth} guesses={guessMarkers} fitAll />
+      <div className="bg-slate-900 border border-slate-800 rounded-lg p-3">
+        {submitter && <p className="text-xs text-slate-400 mb-2">📸 Submitted by <span className="text-white">{submitter.nickname}</span></p>}
+        <div className="space-y-1">
+          {sorted.map((g) => {
+            const p = players.find((pl) => pl.id === g.player_id);
+            return (
+              <div key={g.id} className="flex items-center justify-between text-sm py-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: p?.color ?? "#888" }} />
+                  <span>{p?.nickname}</span>
+                </div>
+                <div className="flex gap-4 text-slate-400">
+                  <span>{g.distance_km?.toFixed(1)} km</span>
+                  <span className="text-emerald-400 font-mono w-12 text-right">{g.points ?? 0}</span>
+                </div>
+              </div>
+            );
+          })}
+          {submitter && (
+            <div className="flex items-center justify-between text-sm py-1 opacity-60">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full" style={{ background: submitter.color ?? "#888" }} />
+                <span>{submitter.nickname}</span>
+                <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">📸 Submitter</span>
+              </div>
+              <span className="text-slate-500">—</span>
+            </div>
+          )}
+        </div>
+      </div>
+      {isHost && (
+        <Button onClick={onNext} className="w-full h-12 bg-sky-500 hover:bg-sky-600">
+          {isLast ? "See final scoreboard" : "Next round"}
+        </Button>
+      )}
+      {!isHost && <p className="text-xs text-center text-slate-500">Host will advance soon…</p>}
+    </div>
+  );
+}
+
+/* ================= FINAL ================= */
+
+function FinalView({ room, players, photos, rounds, guesses, isHost }:
+  { room: Room; players: Player[]; photos: Photo[]; rounds: Round[]; guesses: Guess[]; isHost: boolean }) {
+  const totals = useMemo(() => {
+    return players.map((p) => {
+      const total = guesses
+        .filter((g) => g.player_id === p.id && !g.is_submitter)
+        .reduce((s, g) => s + (g.points ?? 0), 0);
+      return { player: p, total };
+    }).sort((a, b) => b.total - a.total);
+  }, [players, guesses]);
+
+  const playAgain = async () => {
+    // Delete photos from storage
+    const paths = photos.map((p) => p.storage_path);
+    if (paths.length) await supabase.storage.from("photos").remove(paths);
+    await supabase.from("guesses").delete().in("round_id", rounds.map((r) => r.id));
+    await supabase.from("rounds").delete().eq("room_id", room.id);
+    await supabase.from("photos").delete().eq("room_id", room.id);
+    await supabase.from("players").update({ is_ready: false }).eq("room_id", room.id);
+    await supabase.from("rooms").update({ state: "lobby", current_round: 0 }).eq("id", room.id);
+  };
+
+  const endGame = async () => {
+    const paths = photos.map((p) => p.storage_path);
+    if (paths.length) await supabase.storage.from("photos").remove(paths);
+    await supabase.from("rooms").delete().eq("id", room.id);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-white px-4 py-6">
+      <div className="max-w-2xl mx-auto space-y-6">
+        <h1 className="text-3xl font-bold text-center">🏆 Final Scoreboard</h1>
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
+          {totals.map((t, i) => (
+            <div key={t.player.id} className="flex items-center justify-between bg-slate-800/60 rounded-lg px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span className="text-lg font-bold w-6 text-slate-400">#{i + 1}</span>
+                <div className="w-3 h-3 rounded-full" style={{ background: t.player.color ?? "#888" }} />
+                <span className="font-semibold">{t.player.nickname}</span>
+              </div>
+              <span className="font-mono text-xl text-emerald-400">{t.total}</span>
+            </div>
+          ))}
+        </div>
+
+        {isHost && (
+          <div className="space-y-2">
+            <Button onClick={playAgain} className="w-full h-12 bg-sky-500 hover:bg-sky-600">Play again</Button>
+            <Button onClick={endGame} variant="outline" className="w-full h-12 border-slate-700 bg-slate-800 hover:bg-slate-700">End game</Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
