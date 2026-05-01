@@ -19,20 +19,61 @@ export const Route = createFileRoute("/create")({
   component: CreatePage,
 });
 
+type Errors = { nickname?: string; photos?: string; rounds?: string; timer?: string };
+
+function NumField({ label, value, onChange, hint, error }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  hint?: string;
+  error?: string;
+}) {
+  return (
+    <div>
+      <Label className="block mb-1">{label}</Label>
+      <Input
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
+        className="bg-slate-800 border-slate-700 text-lg h-11"
+      />
+      {hint && !error && <p className="text-xs text-slate-500 mt-1">{hint}</p>}
+      {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
+    </div>
+  );
+}
+
 function CreatePage() {
   const navigate = useNavigate();
   const [nickname, setNickname] = useState("");
-  const [photosPerPlayer, setPhotosPerPlayer] = useState(5);
-  const [totalRounds, setTotalRounds] = useState(5);
-  const [timerSeconds, setTimerSeconds] = useState(30);
+  const [photosPerPlayer, setPhotosPerPlayer] = useState("5");
+  const [totalRounds, setTotalRounds] = useState("5");
+  const [timerSeconds, setTimerSeconds] = useState("30");
+  const [errors, setErrors] = useState<Errors>({});
   const [busy, setBusy] = useState(false);
 
+  const validate = (): { ok: false } | { ok: true; photos: number; rounds: number; timer: number } => {
+    const e: Errors = {};
+    if (!nickname.trim()) e.nickname = "Nickname required";
+    const photos = parseInt(photosPerPlayer, 10);
+    const rounds = parseInt(totalRounds, 10);
+    const timer = parseInt(timerSeconds, 10);
+    if (!Number.isFinite(photos) || photos < 3 || photos > 15) e.photos = "Enter a number between 3 and 15";
+    if (!Number.isFinite(rounds) || rounds < 3 || rounds > 15) e.rounds = "Enter a number between 3 and 15";
+    if (!Number.isFinite(timer) || timer < 10 || timer > 120) e.timer = "Enter a number between 10 and 120";
+    setErrors(e);
+    if (Object.keys(e).length) return { ok: false };
+    return { ok: true, photos, rounds, timer };
+  };
+
   const handleCreate = async () => {
-    if (!nickname.trim()) { toast.error("Nickname required"); return; }
+    const v = validate();
+    if (!v.ok) return;
     setBusy(true);
     try {
       const playerId = getPlayerId();
-      // generate unique code
       let code = "";
       for (let i = 0; i < 5; i++) {
         const candidate = generateRoomCode();
@@ -43,9 +84,9 @@ function CreatePage() {
       if (!code) { toast.error("Couldn't allocate room code"); setBusy(false); return; }
 
       const config: RoomConfig = {
-        photos_per_player: photosPerPlayer,
-        total_rounds: totalRounds,
-        timer_seconds: timerSeconds,
+        photos_per_player: v.photos,
+        total_rounds: v.rounds,
+        timer_seconds: v.timer,
         map_scope: WORLD_SCOPE,
       };
 
@@ -76,30 +117,21 @@ function CreatePage() {
 
         <div className="space-y-5">
           <div>
-            <Label>Your nickname</Label>
+            <Label className="block mb-1">Your nickname</Label>
             <Input
               value={nickname} onChange={(e) => setNickname(e.target.value.slice(0, 20))}
-              placeholder="Host name" className="bg-slate-800 border-slate-700"
+              placeholder="Host name" className="bg-slate-800 border-slate-700 h-11"
             />
+            {errors.nickname && <p className="text-xs text-red-400 mt-1">{errors.nickname}</p>}
           </div>
-          <div>
-            <Label>Photos per player</Label>
-            <Input type="number" min={3} max={15} value={photosPerPlayer}
-              onChange={(e) => setPhotosPerPlayer(Math.max(3, Math.min(15, +e.target.value || 5)))}
-              className="bg-slate-800 border-slate-700" />
-          </div>
-          <div>
-            <Label>Total rounds</Label>
-            <Input type="number" min={3} max={15} value={totalRounds}
-              onChange={(e) => setTotalRounds(Math.max(3, Math.min(15, +e.target.value || 5)))}
-              className="bg-slate-800 border-slate-700" />
-          </div>
-          <div>
-            <Label>Round timer (seconds)</Label>
-            <Input type="number" min={10} max={120} value={timerSeconds}
-              onChange={(e) => setTimerSeconds(Math.max(10, Math.min(120, +e.target.value || 30)))}
-              className="bg-slate-800 border-slate-700" />
-          </div>
+
+          <NumField label="Photos per player" value={photosPerPlayer} onChange={setPhotosPerPlayer}
+            hint="3 – 15" error={errors.photos} />
+          <NumField label="Total rounds" value={totalRounds} onChange={setTotalRounds}
+            hint="3 – 15" error={errors.rounds} />
+          <NumField label="Round timer (seconds)" value={timerSeconds} onChange={setTimerSeconds}
+            hint="10 – 120" error={errors.timer} />
+
           <div className="text-xs text-slate-500">
             Map scope: World (more scopes coming later).
           </div>
