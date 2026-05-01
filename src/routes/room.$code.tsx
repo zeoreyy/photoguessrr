@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Copy, MapPin, Trash2, Check, Camera, Loader2 } from "lucide-react";
+import exifr from "exifr";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +9,22 @@ import { toast } from "sonner";
 import { getPlayerId } from "@/lib/playerSession";
 import { GameMap } from "@/components/MapView";
 import { scoreFor, scopeDiagKm, haversine, type RoomConfig } from "@/lib/game";
+
+async function extractGps(file: File): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const data = await exifr.parse(file, { gps: true });
+    const lat = data?.latitude;
+    const lng = data?.longitude;
+    if (lat == null || lng == null) return null;
+    if (typeof lat !== "number" || typeof lng !== "number") return null;
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+    if (lat === 0 && lng === 0) return null;
+    return { lat, lng };
+  } catch (e) {
+    console.warn("[exifr] parse failed", e);
+    return null;
+  }
+}
 
 export const Route = createFileRoute("/room/$code")({
   head: () => ({
@@ -160,30 +177,43 @@ function LobbyView({ room, players, photos, me, isHost }: { room: Room; players:
   };
 
   const startGame = async () => {
-    // build rounds
-    const N = players.length, R = room.config.total_rounds;
-    const base = Math.floor(R / N);
-    const remainder = R % N;
-    const shuffled = [...players].sort(() => Math.random() - 0.5);
-    const counts = new Map(shuffled.map((p, i) => [p.id, base + (i < remainder ? 1 : 0)]));
-    const chosen: Photo[] = [];
-    for (const p of players) {
-      const pool = photos.filter((ph) => ph.player_id === p.id && ph.is_pinned);
-      const need = counts.get(p.id) ?? 0;
-      const picked = pool.sort(() => Math.random() - 0.5).slice(0, need);
-      if (picked.length < need) { toast.error(`${p.nickname} doesn't have enough pinned photos`); return; }
-      chosen.push(...picked);
+    console.log("[start] clicked", { players: players.length, photos: photos.length, config: room.config });
+    try {
+      const N = players.length, R = room.config.total_rounds;
+      if (N === 0) { toast.error("No players"); return; }
+      const base = Math.floor(R / N);
+      const remainder = R % N;
+      const shuffled = [...players].sort(() => Math.random() - 0.5);
+      const counts = new Map(shuffled.map((p, i) => [p.id, base + (i < remainder ? 1 : 0)]));
+      const chosen: Photo[] = [];
+      for (const p of players) {
+        const pool = photos.filter((ph) => ph.player_id === p.id && ph.is_pinned);
+        const need = counts.get(p.id) ?? 0;
+        console.log("[start] player", p.nickname, "needs", need, "has pinned", pool.length);
+        const picked = pool.sort(() => Math.random() - 0.5).slice(0, need);
+        if (picked.length < need) {
+          toast.error(`${p.nickname} doesn't have enough pinned photos (${pool.length}/${need})`);
+          return;
+        }
+        chosen.push(...picked);
+      }
+      chosen.sort(() => Math.random() - 0.5);
+      const roundRows = chosen.map((ph, i) => ({
+        room_id: room.id, round_number: i + 1, photo_id: ph.id,
+      }));
+      console.log("[start] inserting", roundRows.length, "rounds");
+      const { error: rErr } = await supabase.from("rounds").insert(roundRows);
+      if (rErr) { console.error("[start] rounds insert failed", rErr); toast.error(rErr.message); return; }
+      const { error: r1Err } = await supabase.from("rounds").update({ started_at: new Date().toISOString() })
+        .eq("room_id", room.id).eq("round_number", 1);
+      if (r1Err) { console.error("[start] round1 start failed", r1Err); toast.error(r1Err.message); return; }
+      const { error: rmErr } = await supabase.from("rooms").update({ state: "playing", current_round: 1 }).eq("id", room.id);
+      if (rmErr) { console.error("[start] room update failed", rmErr); toast.error(rmErr.message); return; }
+      console.log("[start] success — room state -> playing");
+    } catch (e) {
+      console.error("[start] unexpected error", e);
+      toast.error("Failed to start game");
     }
-    chosen.sort(() => Math.random() - 0.5);
-    const roundRows = chosen.map((ph, i) => ({
-      room_id: room.id, round_number: i + 1, photo_id: ph.id,
-    }));
-    const { error: rErr } = await supabase.from("rounds").insert(roundRows);
-    if (rErr) { toast.error(rErr.message); return; }
-    // start round 1
-    await supabase.from("rounds").update({ started_at: new Date().toISOString() })
-      .eq("room_id", room.id).eq("round_number", 1);
-    await supabase.from("rooms").update({ state: "playing", current_round: 1 }).eq("id", room.id);
   };
 
   return (
@@ -246,25 +276,33 @@ function UploadSection({ room, me, myPhotos, target }: { room: Room; me: Player;
     const list = Array.from(files).slice(0, remaining);
     if (list.length === 0) { toast.error("You've reached the photo limit"); return; }
     setUploading(true);
+    let gpsHits = 0;
     for (const file of list) {
       try {
         const photoId = crypto.randomUUID();
         const path = `rooms/${room.code}/${me.id}/${photoId}.jpg`;
+        // Extract GPS BEFORE upload (file object is still original)
+        const gps = await extractGps(file);
+        console.log("[upload] file", file.name, "gps:", gps);
         const { error: upErr } = await supabase.storage.from("photos").upload(path, file, {
           contentType: file.type || "image/jpeg",
           upsert: false,
         });
         if (upErr) { toast.error(upErr.message); continue; }
-        await supabase.from("photos").insert({
-          id: photoId, room_id: room.id, player_id: me.id, storage_path: path,
-          is_pinned: false, confirmed: false,
-        });
+        const row = gps
+          ? { id: photoId, room_id: room.id, player_id: me.id, storage_path: path,
+              latitude: gps.lat, longitude: gps.lng, is_pinned: true, confirmed: false }
+          : { id: photoId, room_id: room.id, player_id: me.id, storage_path: path,
+              latitude: null, longitude: null, is_pinned: false, confirmed: false };
+        await supabase.from("photos").insert(row);
+        if (gps) gpsHits++;
       } catch (e) {
         console.error(e);
         toast.error("Upload failed");
       }
     }
     setUploading(false);
+    if (gpsHits > 0) toast.success(`Detected GPS in ${gpsHits} photo${gpsHits === 1 ? "" : "s"} — please confirm`);
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -274,7 +312,7 @@ function UploadSection({ room, me, myPhotos, target }: { room: Room; me: Player;
     if (me.is_ready) await supabase.from("players").update({ is_ready: false }).eq("id", me.id);
   };
 
-  const allPinned = myPhotos.length === target && myPhotos.every((p) => p.is_pinned);
+  const allPinned = myPhotos.length === target && myPhotos.every((p) => p.is_pinned && p.confirmed);
 
   const toggleReady = async () => {
     await supabase.from("players").update({ is_ready: !me.is_ready }).eq("id", me.id);
@@ -295,39 +333,52 @@ function UploadSection({ room, me, myPhotos, target }: { room: Room; me: Player;
 
       {myPhotos.length === 0 && (
         <p className="text-sm text-slate-500 text-center py-6">
-          Add {target} photos. After uploading, tap each to pin where it was taken.
+          Add {target} photos. We'll auto-detect GPS for you to confirm — otherwise drop a pin.
         </p>
       )}
 
       <div className="space-y-3">
-        {myPhotos.map((p) => (
-          <div key={p.id} className="bg-slate-800/60 rounded-lg p-3 flex gap-3">
-            <img src={publicUrl(p.storage_path)} alt="" className="w-20 h-20 object-cover rounded" />
-            <div className="flex-1 min-w-0 flex flex-col justify-between">
-              <div>
-                {p.is_pinned ? (
-                  <span className="inline-flex items-center text-xs text-emerald-400">
-                    <Check className="w-3 h-3 mr-1" /> Pinned
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center text-xs text-amber-400">
-                    <MapPin className="w-3 h-3 mr-1" /> Pin required
-                  </span>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="border-slate-600 bg-slate-800 hover:bg-slate-700 text-white text-xs h-7"
-                  onClick={() => setPinModal(p)}>
-                  <MapPin className="w-3 h-3 mr-1" /> {p.is_pinned ? "Edit pin" : "Set pin"}
-                </Button>
-                <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs h-7"
-                  onClick={() => removePhoto(p)}>
-                  <Trash2 className="w-3 h-3" />
-                </Button>
+        {myPhotos.map((p) => {
+          const hasGps = p.latitude != null && p.longitude != null;
+          const needsConfirm = hasGps && !p.confirmed;
+          const needsPin = !hasGps;
+          const done = hasGps && p.confirmed;
+          return (
+            <div key={p.id} className="bg-slate-800/60 rounded-lg p-3 flex gap-3">
+              <img src={publicUrl(p.storage_path)} alt="" className="w-20 h-20 object-cover rounded" />
+              <div className="flex-1 min-w-0 flex flex-col justify-between">
+                <div>
+                  {done && (
+                    <span className="inline-flex items-center text-xs text-emerald-400">
+                      <Check className="w-3 h-3 mr-1" /> Confirmed
+                    </span>
+                  )}
+                  {needsConfirm && (
+                    <span className="inline-flex items-center text-xs text-sky-400">
+                      <MapPin className="w-3 h-3 mr-1" /> GPS detected — confirm location
+                    </span>
+                  )}
+                  {needsPin && (
+                    <span className="inline-flex items-center text-xs text-amber-400">
+                      <MapPin className="w-3 h-3 mr-1" /> Drop a pin
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="border-slate-600 bg-slate-800 hover:bg-slate-700 text-white text-xs h-7"
+                    onClick={() => setPinModal(p)}>
+                    <MapPin className="w-3 h-3 mr-1" />
+                    {done ? "Edit pin" : needsConfirm ? "Review & confirm" : "Set pin"}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs h-7"
+                    onClick={() => removePhoto(p)}>
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {myPhotos.length > 0 && (
@@ -343,6 +394,7 @@ function UploadSection({ room, me, myPhotos, target }: { room: Room; me: Player;
 }
 
 function PinModal({ photo, onClose }: { photo: Photo; onClose: () => void }) {
+  const hadGps = photo.latitude != null && photo.longitude != null && !photo.confirmed;
   const [pin, setPin] = useState<{ lat: number; lng: number } | null>(
     photo.latitude != null && photo.longitude != null ? { lat: photo.latitude, lng: photo.longitude } : null
   );
@@ -357,13 +409,25 @@ function PinModal({ photo, onClose }: { photo: Photo; onClose: () => void }) {
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="bg-slate-900 border-slate-800 text-white max-w-2xl">
         <div className="space-y-3">
-          <p className="text-sm text-slate-300">Click the map to drop a pin where this photo was taken.</p>
+          <p className="text-sm text-slate-300">
+            {hadGps
+              ? "We detected GPS in this photo. Confirm the location is correct, or click the map to adjust."
+              : "Click the map to drop a pin where this photo was taken."}
+          </p>
           <img src={publicUrl(photo.storage_path)} alt="" className="max-h-48 mx-auto rounded" />
-          <GameMap height="400px" pin={pin} pinColor="#0EA5E9"
-            onClick={(lat, lng) => setPin({ lat, lng })} />
+          <GameMap
+            height="400px"
+            pin={pin}
+            pinColor="#0EA5E9"
+            center={pin ? [pin.lat, pin.lng] : [20, 0]}
+            zoom={pin ? 10 : 2}
+            onClick={(lat, lng) => setPin({ lat, lng })}
+          />
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={onClose} className="border-slate-700 bg-slate-800">Cancel</Button>
-            <Button onClick={save} disabled={!pin} className="bg-emerald-500 hover:bg-emerald-600">Save pin</Button>
+            <Button onClick={save} disabled={!pin} className="bg-emerald-500 hover:bg-emerald-600">
+              {hadGps ? "Confirm location" : "Save pin"}
+            </Button>
           </div>
         </div>
       </DialogContent>

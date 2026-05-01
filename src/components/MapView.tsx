@@ -3,20 +3,12 @@ import { MapContainer, TileLayer, Marker, useMap, useMapEvents, Polyline, Popup 
 import L, { LatLngBoundsExpression, LatLngExpression } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Fix default icon
-delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
-
 export function coloredIcon(color: string, label?: string) {
   return L.divIcon({
     className: "",
-    html: `<div style="background:${color};width:18px;height:18px;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.5);"></div>${label ? `<div style="position:absolute;top:20px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,.9);color:white;font-size:11px;padding:2px 6px;border-radius:4px;white-space:nowrap;">${label}</div>` : ""}`,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
+    html: `<div style="position:relative;"><div style="background:${color};width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.6);"></div>${label ? `<div style="position:absolute;top:18px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,.9);color:white;font-size:11px;padding:2px 6px;border-radius:4px;white-space:nowrap;">${label}</div>` : ""}</div>`,
+    iconSize: [12, 12],
+    iconAnchor: [6, 6],
   });
 }
 
@@ -91,17 +83,20 @@ export function GameMap({
   }
 
   return (
-    <div className={className} style={{ height, width: "100%", borderRadius: "0.5rem", overflow: "hidden" }}>
+    <div className={className} style={{ height, width: "100%", background: "#0a0a0a" }}>
       <MapContainer
         center={center}
         zoom={zoom}
-        style={{ height: "100%", width: "100%" }}
+        style={{ height: "100%", width: "100%", background: "#0a0a0a" }}
         scrollWheelZoom
         worldCopyJump
+        zoomControl
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          subdomains="abcd"
+          maxZoom={20}
         />
         {onClick && <ClickHandler onClick={onClick} />}
         {pin && (
