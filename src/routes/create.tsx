@@ -69,19 +69,32 @@ function CreatePage() {
   };
 
   const handleCreate = async () => {
+    console.log("[create] clicked", { nickname, photosPerPlayer, totalRounds, timerSeconds });
     const v = validate();
-    if (!v.ok) return;
+    if (!v.ok) {
+      console.warn("[create] validation failed");
+      toast.error("Please fix the highlighted fields");
+      return;
+    }
     setBusy(true);
     try {
       const playerId = getPlayerId();
+      console.log("[create] playerId", playerId);
       let code = "";
       for (let i = 0; i < 5; i++) {
         const candidate = generateRoomCode();
-        const { data: existing } = await supabase
+        const { data: existing, error: lookupErr } = await supabase
           .from("rooms").select("id").eq("code", candidate).maybeSingle();
+        if (lookupErr) {
+          console.error("[create] code lookup failed", lookupErr);
+          toast.error(lookupErr.message);
+          setBusy(false);
+          return;
+        }
         if (!existing) { code = candidate; break; }
       }
       if (!code) { toast.error("Couldn't allocate room code"); setBusy(false); return; }
+      console.log("[create] allocated code", code);
 
       const config: RoomConfig = {
         photos_per_player: v.photos,
@@ -94,14 +107,20 @@ function CreatePage() {
         .from("rooms")
         .insert({ code, host_id: playerId, config: config as never, state: "lobby" })
         .select().single();
-      if (error || !room) { toast.error(error?.message ?? "Failed"); setBusy(false); return; }
+      console.log("[create] room insert result", { room, error });
+      if (error || !room) { toast.error(error?.message ?? "Failed to create room"); setBusy(false); return; }
 
       const { error: pErr } = await supabase.from("players").insert({
         id: playerId, room_id: room.id, nickname: nickname.trim(), is_host: true, color: COLORS[0],
       });
+      console.log("[create] player insert error", pErr);
       if (pErr) { toast.error(pErr.message); setBusy(false); return; }
 
+      console.log("[create] navigating to room", code);
       navigate({ to: "/room/$code", params: { code } });
+    } catch (e) {
+      console.error("[create] unexpected error", e);
+      toast.error(e instanceof Error ? e.message : "Failed to create room");
     } finally {
       setBusy(false);
     }
