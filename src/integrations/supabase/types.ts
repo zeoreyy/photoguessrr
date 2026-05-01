@@ -14,7 +14,221 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      guesses: {
+        Row: {
+          distance_km: number | null
+          id: string
+          is_submitter: boolean
+          latitude: number
+          longitude: number
+          player_id: string
+          points: number | null
+          round_id: string
+          submitted_at: string
+        }
+        Insert: {
+          distance_km?: number | null
+          id?: string
+          is_submitter?: boolean
+          latitude: number
+          longitude: number
+          player_id: string
+          points?: number | null
+          round_id: string
+          submitted_at?: string
+        }
+        Update: {
+          distance_km?: number | null
+          id?: string
+          is_submitter?: boolean
+          latitude?: number
+          longitude?: number
+          player_id?: string
+          points?: number | null
+          round_id?: string
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guesses_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guesses_round_id_fkey"
+            columns: ["round_id"]
+            isOneToOne: false
+            referencedRelation: "rounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      photos: {
+        Row: {
+          confirmed: boolean
+          id: string
+          is_pinned: boolean
+          latitude: number | null
+          longitude: number | null
+          player_id: string
+          room_id: string
+          storage_path: string
+          uploaded_at: string
+        }
+        Insert: {
+          confirmed?: boolean
+          id?: string
+          is_pinned?: boolean
+          latitude?: number | null
+          longitude?: number | null
+          player_id: string
+          room_id: string
+          storage_path: string
+          uploaded_at?: string
+        }
+        Update: {
+          confirmed?: boolean
+          id?: string
+          is_pinned?: boolean
+          latitude?: number | null
+          longitude?: number | null
+          player_id?: string
+          room_id?: string
+          storage_path?: string
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "photos_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photos_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      players: {
+        Row: {
+          color: string | null
+          id: string
+          is_host: boolean
+          is_ready: boolean
+          joined_at: string
+          nickname: string
+          room_id: string
+        }
+        Insert: {
+          color?: string | null
+          id?: string
+          is_host?: boolean
+          is_ready?: boolean
+          joined_at?: string
+          nickname: string
+          room_id: string
+        }
+        Update: {
+          color?: string | null
+          id?: string
+          is_host?: boolean
+          is_ready?: boolean
+          joined_at?: string
+          nickname?: string
+          room_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "players_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          code: string
+          config: Json
+          created_at: string
+          current_round: number
+          ended_at: string | null
+          host_id: string
+          id: string
+          state: string
+        }
+        Insert: {
+          code: string
+          config: Json
+          created_at?: string
+          current_round?: number
+          ended_at?: string | null
+          host_id: string
+          id?: string
+          state?: string
+        }
+        Update: {
+          code?: string
+          config?: Json
+          created_at?: string
+          current_round?: number
+          ended_at?: string | null
+          host_id?: string
+          id?: string
+          state?: string
+        }
+        Relationships: []
+      }
+      rounds: {
+        Row: {
+          ended_at: string | null
+          id: string
+          photo_id: string | null
+          room_id: string
+          round_number: number
+          started_at: string | null
+        }
+        Insert: {
+          ended_at?: string | null
+          id?: string
+          photo_id?: string | null
+          room_id: string
+          round_number: number
+          started_at?: string | null
+        }
+        Update: {
+          ended_at?: string | null
+          id?: string
+          photo_id?: string | null
+          room_id?: string
+          round_number?: number
+          started_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rounds_photo_id_fkey"
+            columns: ["photo_id"]
+            isOneToOne: false
+            referencedRelation: "photos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rounds_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
