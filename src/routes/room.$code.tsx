@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Copy, MapPin, Trash2, Check, Camera, Loader2 } from "lucide-react";
+import exifr from "exifr";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +9,22 @@ import { toast } from "sonner";
 import { getPlayerId } from "@/lib/playerSession";
 import { GameMap } from "@/components/MapView";
 import { scoreFor, scopeDiagKm, haversine, type RoomConfig } from "@/lib/game";
+
+async function extractGps(file: File): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const data = await exifr.parse(file, { gps: true });
+    const lat = data?.latitude;
+    const lng = data?.longitude;
+    if (lat == null || lng == null) return null;
+    if (typeof lat !== "number" || typeof lng !== "number") return null;
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+    if (lat === 0 && lng === 0) return null;
+    return { lat, lng };
+  } catch (e) {
+    console.warn("[exifr] parse failed", e);
+    return null;
+  }
+}
 
 export const Route = createFileRoute("/room/$code")({
   head: () => ({
