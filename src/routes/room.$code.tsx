@@ -263,25 +263,33 @@ function UploadSection({ room, me, myPhotos, target }: { room: Room; me: Player;
     const list = Array.from(files).slice(0, remaining);
     if (list.length === 0) { toast.error("You've reached the photo limit"); return; }
     setUploading(true);
+    let gpsHits = 0;
     for (const file of list) {
       try {
         const photoId = crypto.randomUUID();
         const path = `rooms/${room.code}/${me.id}/${photoId}.jpg`;
+        // Extract GPS BEFORE upload (file object is still original)
+        const gps = await extractGps(file);
+        console.log("[upload] file", file.name, "gps:", gps);
         const { error: upErr } = await supabase.storage.from("photos").upload(path, file, {
           contentType: file.type || "image/jpeg",
           upsert: false,
         });
         if (upErr) { toast.error(upErr.message); continue; }
-        await supabase.from("photos").insert({
-          id: photoId, room_id: room.id, player_id: me.id, storage_path: path,
-          is_pinned: false, confirmed: false,
-        });
+        const row = gps
+          ? { id: photoId, room_id: room.id, player_id: me.id, storage_path: path,
+              latitude: gps.lat, longitude: gps.lng, is_pinned: true, confirmed: false }
+          : { id: photoId, room_id: room.id, player_id: me.id, storage_path: path,
+              latitude: null, longitude: null, is_pinned: false, confirmed: false };
+        await supabase.from("photos").insert(row);
+        if (gps) gpsHits++;
       } catch (e) {
         console.error(e);
         toast.error("Upload failed");
       }
     }
     setUploading(false);
+    if (gpsHits > 0) toast.success(`Detected GPS in ${gpsHits} photo${gpsHits === 1 ? "" : "s"} — please confirm`);
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -291,7 +299,7 @@ function UploadSection({ room, me, myPhotos, target }: { room: Room; me: Player;
     if (me.is_ready) await supabase.from("players").update({ is_ready: false }).eq("id", me.id);
   };
 
-  const allPinned = myPhotos.length === target && myPhotos.every((p) => p.is_pinned);
+  const allPinned = myPhotos.length === target && myPhotos.every((p) => p.is_pinned && p.confirmed);
 
   const toggleReady = async () => {
     await supabase.from("players").update({ is_ready: !me.is_ready }).eq("id", me.id);
