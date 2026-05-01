@@ -381,6 +381,7 @@ function UploadSection({ room, me, myPhotos, target }: { room: Room; me: Player;
 }
 
 function PinModal({ photo, onClose }: { photo: Photo; onClose: () => void }) {
+  const hadGps = photo.latitude != null && photo.longitude != null && !photo.confirmed;
   const [pin, setPin] = useState<{ lat: number; lng: number } | null>(
     photo.latitude != null && photo.longitude != null ? { lat: photo.latitude, lng: photo.longitude } : null
   );
@@ -395,13 +396,25 @@ function PinModal({ photo, onClose }: { photo: Photo; onClose: () => void }) {
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="bg-slate-900 border-slate-800 text-white max-w-2xl">
         <div className="space-y-3">
-          <p className="text-sm text-slate-300">Click the map to drop a pin where this photo was taken.</p>
+          <p className="text-sm text-slate-300">
+            {hadGps
+              ? "We detected GPS in this photo. Confirm the location is correct, or click the map to adjust."
+              : "Click the map to drop a pin where this photo was taken."}
+          </p>
           <img src={publicUrl(photo.storage_path)} alt="" className="max-h-48 mx-auto rounded" />
-          <GameMap height="400px" pin={pin} pinColor="#0EA5E9"
-            onClick={(lat, lng) => setPin({ lat, lng })} />
+          <GameMap
+            height="400px"
+            pin={pin}
+            pinColor="#0EA5E9"
+            center={pin ? [pin.lat, pin.lng] : [20, 0]}
+            zoom={pin ? 10 : 2}
+            onClick={(lat, lng) => setPin({ lat, lng })}
+          />
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={onClose} className="border-slate-700 bg-slate-800">Cancel</Button>
-            <Button onClick={save} disabled={!pin} className="bg-emerald-500 hover:bg-emerald-600">Save pin</Button>
+            <Button onClick={save} disabled={!pin} className="bg-emerald-500 hover:bg-emerald-600">
+              {hadGps ? "Confirm location" : "Save pin"}
+            </Button>
           </div>
         </div>
       </DialogContent>
