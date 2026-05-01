@@ -1,0 +1,12 @@
+// Per-browser persistent player identity (no auth, party-game style)
+const KEY = "photoguessr_player_id";
+
+export function getPlayerId(): string {
+  if (typeof window === "undefined") return "";
+  let id = localStorage.getItem(KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(KEY, id);
+  }
+  return id;
+}
