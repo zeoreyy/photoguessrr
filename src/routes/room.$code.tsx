@@ -177,30 +177,43 @@ function LobbyView({ room, players, photos, me, isHost }: { room: Room; players:
   };
 
   const startGame = async () => {
-    // build rounds
-    const N = players.length, R = room.config.total_rounds;
-    const base = Math.floor(R / N);
-    const remainder = R % N;
-    const shuffled = [...players].sort(() => Math.random() - 0.5);
-    const counts = new Map(shuffled.map((p, i) => [p.id, base + (i < remainder ? 1 : 0)]));
-    const chosen: Photo[] = [];
-    for (const p of players) {
-      const pool = photos.filter((ph) => ph.player_id === p.id && ph.is_pinned);
-      const need = counts.get(p.id) ?? 0;
-      const picked = pool.sort(() => Math.random() - 0.5).slice(0, need);
-      if (picked.length < need) { toast.error(`${p.nickname} doesn't have enough pinned photos`); return; }
-      chosen.push(...picked);
+    console.log("[start] clicked", { players: players.length, photos: photos.length, config: room.config });
+    try {
+      const N = players.length, R = room.config.total_rounds;
+      if (N === 0) { toast.error("No players"); return; }
+      const base = Math.floor(R / N);
+      const remainder = R % N;
+      const shuffled = [...players].sort(() => Math.random() - 0.5);
+      const counts = new Map(shuffled.map((p, i) => [p.id, base + (i < remainder ? 1 : 0)]));
+      const chosen: Photo[] = [];
+      for (const p of players) {
+        const pool = photos.filter((ph) => ph.player_id === p.id && ph.is_pinned);
+        const need = counts.get(p.id) ?? 0;
+        console.log("[start] player", p.nickname, "needs", need, "has pinned", pool.length);
+        const picked = pool.sort(() => Math.random() - 0.5).slice(0, need);
+        if (picked.length < need) {
+          toast.error(`${p.nickname} doesn't have enough pinned photos (${pool.length}/${need})`);
+          return;
+        }
+        chosen.push(...picked);
+      }
+      chosen.sort(() => Math.random() - 0.5);
+      const roundRows = chosen.map((ph, i) => ({
+        room_id: room.id, round_number: i + 1, photo_id: ph.id,
+      }));
+      console.log("[start] inserting", roundRows.length, "rounds");
+      const { error: rErr } = await supabase.from("rounds").insert(roundRows);
+      if (rErr) { console.error("[start] rounds insert failed", rErr); toast.error(rErr.message); return; }
+      const { error: r1Err } = await supabase.from("rounds").update({ started_at: new Date().toISOString() })
+        .eq("room_id", room.id).eq("round_number", 1);
+      if (r1Err) { console.error("[start] round1 start failed", r1Err); toast.error(r1Err.message); return; }
+      const { error: rmErr } = await supabase.from("rooms").update({ state: "playing", current_round: 1 }).eq("id", room.id);
+      if (rmErr) { console.error("[start] room update failed", rmErr); toast.error(rmErr.message); return; }
+      console.log("[start] success — room state -> playing");
+    } catch (e) {
+      console.error("[start] unexpected error", e);
+      toast.error("Failed to start game");
     }
-    chosen.sort(() => Math.random() - 0.5);
-    const roundRows = chosen.map((ph, i) => ({
-      room_id: room.id, round_number: i + 1, photo_id: ph.id,
-    }));
-    const { error: rErr } = await supabase.from("rounds").insert(roundRows);
-    if (rErr) { toast.error(rErr.message); return; }
-    // start round 1
-    await supabase.from("rounds").update({ started_at: new Date().toISOString() })
-      .eq("room_id", room.id).eq("round_number", 1);
-    await supabase.from("rooms").update({ state: "playing", current_round: 1 }).eq("id", room.id);
   };
 
   return (
