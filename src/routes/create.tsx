@@ -51,7 +51,7 @@ function CreatePage() {
 
       const { data: room, error } = await supabase
         .from("rooms")
-        .insert({ code, host_id: playerId, config: config as unknown as Record<string, unknown>, state: "lobby" })
+        .insert({ code, host_id: playerId, config: config as never, state: "lobby" })
         .select().single();
       if (error || !room) { toast.error(error?.message ?? "Failed"); setBusy(false); return; }
 
