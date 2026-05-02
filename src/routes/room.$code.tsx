@@ -659,13 +659,7 @@ function RevealView({ room, round, photo, players, guesses, submitter, isHost, o
     return { lat: g.latitude, lng: g.longitude, color: p?.color ?? "#888", label: p?.nickname ?? "?" };
   });
 
-  // auto-advance after 10s for host
-  useEffect(() => {
-    if (!isHost) return;
-    const t = setTimeout(onNext, 10000);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [round.id]);
+  // No auto-advance — host must explicitly click "Next round".
 
   const sorted = [...guesses]
     .filter((g) => !g.is_submitter)
