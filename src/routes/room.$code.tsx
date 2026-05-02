@@ -482,9 +482,9 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
 
   const inPreview = previewLeft > 0 && !isReveal;
 
-  // round end check (host drives)
+  // round end check (host drives) — never during preview
   useEffect(() => {
-    if (!isHost || !round || isReveal) return;
+    if (!isHost || !round || isReveal || inPreview) return;
     const nonSubmitters = players.filter((p) => p.id !== photo?.player_id);
     const allSubmitted = nonSubmitters.length > 0 && nonSubmitters.every((p) =>
       roundGuesses.some((g) => g.player_id === p.id));
@@ -493,7 +493,7 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
       endRound();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeLeft, roundGuesses.length, isHost, round?.id, isReveal]);
+  }, [timeLeft, roundGuesses.length, isHost, round?.id, isReveal, inPreview]);
 
   const endRound = async () => {
     if (!round || !photo) return;
