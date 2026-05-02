@@ -529,44 +529,122 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
 
   if (!round || !photo) return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><Loader2 className="animate-spin" /></div>;
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-white px-4 py-4">
-      <div className="max-w-3xl mx-auto space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-slate-400">Round {room.current_round} of {room.config.total_rounds}</span>
-          {!isReveal && (
-            <span className={`font-mono text-lg ${timeLeft <= 5 ? "text-red-400" : "text-sky-400"}`}>
-              {timeLeft}s
-            </span>
-          )}
-        </div>
-
-        {isSubmitter && !isReveal && (
-          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 text-sm text-amber-200">
-            📸 This is your photo — your guess won't count this round.
+  // ===== Reveal screen: keep the prior layout =====
+  if (isReveal) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white px-4 py-4">
+        <div className="max-w-3xl mx-auto space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-slate-400">Round {room.current_round} of {room.config.total_rounds}</span>
           </div>
-        )}
-
-        <img src={publicUrl(photo.storage_path)} alt="" className="w-full max-h-[45vh] object-contain rounded-lg bg-slate-900" />
-
-        {isReveal ? (
+          {isSubmitter && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 text-sm text-amber-200">
+              📸 This is your photo — your guess didn't count this round.
+            </div>
+          )}
+          <img src={publicUrl(photo.storage_path)} alt="" className="w-full max-h-[40vh] object-contain rounded-lg bg-slate-900" />
           <RevealView room={room} round={round} photo={photo} players={players}
             guesses={roundGuesses} submitter={submitter} isHost={isHost} onNext={nextRound} />
+        </div>
+      </div>
+    );
+  }
+
+  // ===== Active round: GeoGuessr-style fullscreen photo + expandable mini-map =====
+  return (
+    <div className="fixed inset-0 bg-slate-950 text-white overflow-hidden">
+      {/* Fullscreen photo */}
+      <img
+        src={publicUrl(photo.storage_path)}
+        alt=""
+        className="absolute inset-0 w-full h-full object-contain bg-black"
+      />
+
+      {/* Top HUD */}
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 py-2 bg-gradient-to-b from-black/70 to-transparent pointer-events-none">
+        <span className="text-xs sm:text-sm text-white/90 font-medium drop-shadow">
+          Round {room.current_round}/{room.config.total_rounds}
+        </span>
+        {inPreview ? (
+          <span className="font-mono text-base sm:text-lg text-amber-300 drop-shadow">
+            Get ready… {previewLeft}s
+          </span>
         ) : (
-          <>
-            <GameMap height="380px" pin={pin} pinColor={me.color ?? "#0EA5E9"}
-              onClick={(lat, lng) => !myGuess && setPin({ lat, lng })} />
-            {myGuess ? (
-              <Button disabled className="w-full bg-slate-800 text-slate-400">Waiting for others…</Button>
-            ) : (
-              <Button onClick={submitGuess} disabled={!pin}
-                className="w-full h-12 bg-sky-500 hover:bg-sky-600 disabled:bg-slate-800 disabled:text-slate-500">
-                Submit guess
-              </Button>
-            )}
-          </>
+          <span className={`font-mono text-base sm:text-lg drop-shadow ${timeLeft <= 5 ? "text-red-400" : "text-sky-300"}`}>
+            ⏱ {timeLeft}s
+          </span>
         )}
       </div>
+
+      {isSubmitter && (
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-amber-500/90 text-amber-950 text-xs px-3 py-1 rounded-full font-medium shadow-lg pointer-events-none">
+          📸 Your photo — guess won't count
+        </div>
+      )}
+
+      {/* Mini-map (bottom-right) — expands on tap, like GeoGuessr */}
+      {!inPreview && (
+        <div
+          className={`absolute z-20 transition-all duration-200 ease-out ${
+            mapOpen
+              ? "inset-2 sm:inset-auto sm:bottom-3 sm:right-3 sm:w-[460px] sm:h-[420px]"
+              : "bottom-3 right-3 w-44 h-32 sm:w-56 sm:h-40 hover:w-64 hover:h-44"
+          }`}
+          onMouseEnter={() => !mapOpen && setMapOpen(true)}
+        >
+          <div className="relative w-full h-full rounded-lg overflow-hidden border-2 border-white/30 shadow-2xl bg-slate-900">
+            <GameMap
+              height="100%"
+              pin={pin}
+              pinColor={me.color ?? "#0EA5E9"}
+              onClick={(lat, lng) => !myGuess && setPin({ lat, lng })}
+            />
+            {/* Tap-to-expand overlay (mobile) when collapsed */}
+            {!mapOpen && (
+              <button
+                onClick={() => setMapOpen(true)}
+                className="absolute inset-0 sm:hidden bg-black/0 active:bg-black/20"
+                aria-label="Expand map"
+              />
+            )}
+            {/* Close (mobile) */}
+            {mapOpen && (
+              <button
+                onClick={() => setMapOpen(false)}
+                className="absolute top-1 right-1 z-30 bg-black/70 hover:bg-black text-white text-xs px-2 py-1 rounded"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Submit button overlay */}
+          {mapOpen && (
+            <div className="absolute bottom-2 left-2 right-2 z-30">
+              {myGuess ? (
+                <Button disabled className="w-full bg-slate-800/90 text-slate-300 backdrop-blur">
+                  Waiting for others…
+                </Button>
+              ) : (
+                <Button
+                  onClick={async () => { await submitGuess(); setMapOpen(false); }}
+                  disabled={!pin}
+                  className="w-full h-11 bg-sky-500 hover:bg-sky-600 disabled:bg-slate-800/90 disabled:text-slate-400 shadow-lg"
+                >
+                  {pin ? "Submit guess" : "Tap map to drop pin"}
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Preview overlay */}
+      {inPreview && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur px-4 py-2 rounded-full text-sm text-white/90 pointer-events-none">
+          Look carefully… map opens in {previewLeft}s
+        </div>
+      )}
     </div>
   );
 }
