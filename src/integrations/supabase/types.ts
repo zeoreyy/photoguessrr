@@ -50,13 +50,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "guesses_player_id_fkey"
-            columns: ["player_id"]
-            isOneToOne: false
-            referencedRelation: "players"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "guesses_round_id_fkey"
             columns: ["round_id"]
             isOneToOne: false
@@ -100,13 +93,6 @@ export type Database = {
           uploaded_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "photos_player_id_fkey"
-            columns: ["player_id"]
-            isOneToOne: false
-            referencedRelation: "players"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "photos_room_id_fkey"
             columns: ["room_id"]
