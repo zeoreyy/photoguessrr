@@ -447,24 +447,40 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
   const myGuess = roundGuesses.find((g) => g.player_id === me.id);
   const isReveal = !!round?.ended_at;
 
+  const PREVIEW_SECONDS = 5;
   const [pin, setPin] = useState<{ lat: number; lng: number } | null>(null);
   const [timeLeft, setTimeLeft] = useState(room.config.timer_seconds);
+  const [previewLeft, setPreviewLeft] = useState(PREVIEW_SECONDS);
+  const [mapOpen, setMapOpen] = useState(false);
   const advancingRef = useRef(false);
 
-  useEffect(() => { setPin(null); advancingRef.current = false; }, [round?.id]);
+  useEffect(() => {
+    setPin(null);
+    setMapOpen(false);
+    advancingRef.current = false;
+  }, [round?.id]);
 
-  // timer
+  // timer (with 5s preview phase before timer starts)
   useEffect(() => {
     if (!round?.started_at || isReveal) return;
     const start = new Date(round.started_at).getTime();
     const tick = () => {
-      const left = Math.max(0, room.config.timer_seconds - Math.floor((Date.now() - start) / 1000));
-      setTimeLeft(left);
+      const elapsed = (Date.now() - start) / 1000;
+      const previewRem = Math.max(0, Math.ceil(PREVIEW_SECONDS - elapsed));
+      setPreviewLeft(previewRem);
+      if (elapsed < PREVIEW_SECONDS) {
+        setTimeLeft(room.config.timer_seconds);
+      } else {
+        const left = Math.max(0, room.config.timer_seconds - Math.floor(elapsed - PREVIEW_SECONDS));
+        setTimeLeft(left);
+      }
     };
     tick();
     const id = setInterval(tick, 250);
     return () => clearInterval(id);
   }, [round?.started_at, room.config.timer_seconds, isReveal]);
+
+  const inPreview = previewLeft > 0 && !isReveal;
 
   // round end check (host drives)
   useEffect(() => {
