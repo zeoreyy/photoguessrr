@@ -330,58 +330,58 @@ function UploadSection({ room, me, myPhotos, target }: { room: Room; me: Player;
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+    <div className="border border-neutral-800 p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-slate-300">Your photos ({myPhotos.length}/{target})</h2>
+        <h2 className="font-mono text-[10px] uppercase tracking-widest text-neutral-400">Your photos · {myPhotos.length}/{target}</h2>
         <Button size="sm" disabled={uploading || myPhotos.length >= target}
           onClick={() => inputRef.current?.click()}
-          className="bg-sky-500 hover:bg-sky-600">
-          <Camera className="w-4 h-4 mr-1" /> {uploading ? "Uploading…" : "Add photos"}
+          className="bg-yellow-400 hover:bg-yellow-300 text-black rounded-none uppercase tracking-widest text-xs font-bold">
+          <Camera className="w-4 h-4 mr-1" /> {uploading ? "Uploading…" : "Add"}
         </Button>
         <input ref={inputRef} type="file" accept="image/*" multiple className="hidden"
           onChange={(e) => handleFiles(e.target.files)} />
       </div>
 
       {myPhotos.length === 0 && (
-        <p className="text-sm text-slate-500 text-center py-6">
-          Add {target} photos. We'll auto-detect GPS for you to confirm — otherwise drop a pin.
+        <p className="text-sm text-neutral-500 text-center py-6 font-mono">
+          Add {target} photos. GPS auto-detected — otherwise drop a pin.
         </p>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {myPhotos.map((p) => {
           const hasGps = p.latitude != null && p.longitude != null;
           const needsConfirm = hasGps && !p.confirmed;
           const needsPin = !hasGps;
           const done = hasGps && p.confirmed;
           return (
-            <div key={p.id} className="bg-slate-800/60 rounded-lg p-3 flex gap-3">
-              <img src={publicUrl(p.storage_path)} alt="" className="w-20 h-20 object-cover rounded" />
+            <div key={p.id} className="bg-neutral-900 p-3 flex gap-3 border-l-2 border-neutral-700">
+              <img src={publicUrl(p.storage_path)} alt="" className="w-20 h-20 object-cover" />
               <div className="flex-1 min-w-0 flex flex-col justify-between">
                 <div>
                   {done && (
-                    <span className="inline-flex items-center text-xs text-emerald-400">
+                    <span className="inline-flex items-center text-[10px] font-mono uppercase tracking-widest text-yellow-400">
                       <Check className="w-3 h-3 mr-1" /> Confirmed
                     </span>
                   )}
                   {needsConfirm && (
-                    <span className="inline-flex items-center text-xs text-sky-400">
-                      <MapPin className="w-3 h-3 mr-1" /> GPS detected — confirm location
+                    <span className="inline-flex items-center text-[10px] font-mono uppercase tracking-widest text-white">
+                      <MapPin className="w-3 h-3 mr-1" /> GPS — confirm
                     </span>
                   )}
                   {needsPin && (
-                    <span className="inline-flex items-center text-xs text-amber-400">
+                    <span className="inline-flex items-center text-[10px] font-mono uppercase tracking-widest text-yellow-400">
                       <MapPin className="w-3 h-3 mr-1" /> Drop a pin
                     </span>
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="border-slate-600 bg-slate-800 hover:bg-slate-700 text-white text-xs h-7"
+                  <Button size="sm" variant="outline" className="border-neutral-700 bg-neutral-900 hover:bg-neutral-800 text-white text-[10px] h-7 rounded-none uppercase tracking-widest"
                     onClick={() => setPinModal(p)}>
                     <MapPin className="w-3 h-3 mr-1" />
-                    {done ? "Edit pin" : needsConfirm ? "Review & confirm" : "Set pin"}
+                    {done ? "Edit" : needsConfirm ? "Review" : "Set pin"}
                   </Button>
-                  <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs h-7"
+                  <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs h-7 rounded-none"
                     onClick={() => removePhoto(p)}>
                     <Trash2 className="w-3 h-3" />
                   </Button>
@@ -394,8 +394,10 @@ function UploadSection({ room, me, myPhotos, target }: { room: Room; me: Player;
 
       {myPhotos.length > 0 && (
         <Button onClick={toggleReady} disabled={!allPinned && !me.is_ready}
-          className={me.is_ready ? "w-full bg-slate-700 hover:bg-slate-600" : "w-full bg-emerald-500 hover:bg-emerald-600"}>
-          {me.is_ready ? "I'm not ready" : allPinned ? "I'm ready" : `Pin all photos first`}
+          className={me.is_ready
+            ? "w-full h-12 bg-neutral-800 hover:bg-neutral-700 text-white rounded-none uppercase tracking-widest font-bold"
+            : "w-full h-12 bg-yellow-400 hover:bg-yellow-300 text-black rounded-none uppercase tracking-widest font-bold disabled:bg-neutral-900 disabled:text-neutral-600"}>
+          {me.is_ready ? "Not ready" : allPinned ? "I'm ready" : `Pin all photos first`}
         </Button>
       )}
 
