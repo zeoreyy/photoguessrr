@@ -482,13 +482,26 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
 
   const inPreview = previewLeft > 0 && !isReveal;
 
+  // auto-submit pin if time is running out and player has a pin but didn't submit
+  const autoSubmitRef = useRef(false);
+  useEffect(() => {
+    if (!round || isReveal || inPreview) return;
+    if (timeLeft === 0 && pin && !myGuess && !isSubmitter && !autoSubmitRef.current) {
+      autoSubmitRef.current = true;
+      submitGuess();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft, pin, myGuess, isReveal, inPreview, isSubmitter]);
+  useEffect(() => { autoSubmitRef.current = false; }, [round?.id]);
+
   // round end check (host drives) — never during preview
   useEffect(() => {
     if (!isHost || !round || isReveal || inPreview) return;
     const nonSubmitters = players.filter((p) => p.id !== photo?.player_id);
     const allSubmitted = nonSubmitters.length > 0 && nonSubmitters.every((p) =>
       roundGuesses.some((g) => g.player_id === p.id));
-    if ((timeLeft === 0 || allSubmitted) && !advancingRef.current) {
+    // Give a 1.5s grace period after timer hits 0 so auto-submits land first
+    if ((allSubmitted || timeLeft <= -2) && !advancingRef.current) {
       advancingRef.current = true;
       endRound();
     }
