@@ -591,23 +591,23 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
 
       {/* Top HUD - always above map */}
       <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-3 py-2 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
-        <span className="text-xs sm:text-sm text-white font-medium drop-shadow-lg bg-black/50 px-2 py-1 rounded">
-          Round {room.current_round}/{room.config.total_rounds}
+        <span className="font-mono text-xs uppercase tracking-widest text-white bg-black px-2 py-1 border border-neutral-700">
+          R{room.current_round}/{room.config.total_rounds}
         </span>
         {inPreview ? (
-          <span className="font-mono text-base sm:text-lg text-amber-300 drop-shadow-lg bg-black/60 px-3 py-1 rounded">
-            Get ready… {previewLeft}s
+          <span className="font-mono text-base sm:text-lg text-black bg-yellow-400 px-3 py-1 font-bold">
+            READY · {previewLeft}s
           </span>
         ) : (
-          <span className={`font-mono text-base sm:text-lg drop-shadow-lg bg-black/60 px-3 py-1 rounded ${timeLeft <= 5 ? "text-red-400" : "text-sky-300"}`}>
-            ⏱ {timeLeft}s
+          <span className={`font-mono text-base sm:text-lg px-3 py-1 font-bold ${timeLeft <= 5 ? "text-white bg-red-500" : "text-black bg-yellow-400"}`}>
+            {timeLeft}s
           </span>
         )}
       </div>
 
       {isSubmitter && (
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-amber-500/90 text-amber-950 text-xs px-3 py-1 rounded-full font-medium shadow-lg pointer-events-none">
-          📸 Your photo — guess won't count
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-yellow-400 text-black text-[10px] font-mono uppercase tracking-widest px-3 py-1 font-bold pointer-events-none">
+          ◆ Your photo
         </div>
       )}
 
