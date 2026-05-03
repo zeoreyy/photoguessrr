@@ -461,6 +461,7 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
   }, [round?.id]);
 
   // timer (with 5s preview phase before timer starts)
+  const [overtime, setOvertime] = useState(0);
   useEffect(() => {
     if (!round?.started_at || isReveal) return;
     const start = new Date(round.started_at).getTime();
@@ -470,9 +471,11 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
       setPreviewLeft(previewRem);
       if (elapsed < PREVIEW_SECONDS) {
         setTimeLeft(room.config.timer_seconds);
+        setOvertime(0);
       } else {
-        const left = Math.max(0, room.config.timer_seconds - Math.floor(elapsed - PREVIEW_SECONDS));
-        setTimeLeft(left);
+        const remaining = room.config.timer_seconds - (elapsed - PREVIEW_SECONDS);
+        setTimeLeft(Math.max(0, Math.floor(remaining)));
+        setOvertime(remaining < 0 ? -remaining : 0);
       }
     };
     tick();
