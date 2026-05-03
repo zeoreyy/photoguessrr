@@ -103,8 +103,10 @@ export function GameMap({
     }
   }
 
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
   return (
-    <div className={className} style={{ height, width: "100%", background: "#aadaff" }}>
+    <div ref={wrapperRef} className={className} style={{ height, width: "100%", background: "#aadaff", position: "relative" }}>
       <MapContainer
         center={center}
         zoom={zoom}
@@ -123,7 +125,12 @@ export function GameMap({
           maxZoom={19}
           maxNativeZoom={19}
           minZoom={2}
+          tileSize={256}
+          updateWhenIdle={false}
+          keepBuffer={4}
+          crossOrigin
         />
+        <InvalidateOnResize />
         {onClick && <ClickHandler onClick={onClick} />}
         {pin && (
           <Marker position={[pin.lat, pin.lng]} icon={coloredIcon(pinColor, pinLabel)} />
