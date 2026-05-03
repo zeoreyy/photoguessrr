@@ -763,26 +763,31 @@ function FinalView({ room, players, photos, rounds, guesses, isHost }:
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white px-4 py-6">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold text-center">🏆 Final Scoreboard</h1>
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
+    <div className="min-h-screen bg-black text-white px-4 py-10">
+      <div className="max-w-2xl mx-auto space-y-8">
+        <div>
+          <p className="font-mono text-xs tracking-[0.3em] uppercase text-yellow-400 mb-3">◆ Game Over</p>
+          <h1 className="text-5xl sm:text-6xl font-black uppercase tracking-tighter leading-none">
+            Final<br/>Score.
+          </h1>
+        </div>
+        <div className="border border-neutral-800">
           {totals.map((t, i) => (
-            <div key={t.player.id} className="flex items-center justify-between bg-slate-800/60 rounded-lg px-4 py-3">
-              <div className="flex items-center gap-3">
-                <span className="text-lg font-bold w-6 text-slate-400">#{i + 1}</span>
-                <div className="w-3 h-3 rounded-full" style={{ background: t.player.color ?? "#888" }} />
-                <span className="font-semibold">{t.player.nickname}</span>
+            <div key={t.player.id} className={`flex items-center justify-between px-5 py-4 border-b border-neutral-800 last:border-b-0 ${i === 0 ? "bg-yellow-400 text-black" : "bg-neutral-950"}`}>
+              <div className="flex items-center gap-4">
+                <span className={`font-mono text-2xl font-black ${i === 0 ? "text-black" : "text-neutral-500"}`}>#{i + 1}</span>
+                <div className="w-3 h-3" style={{ background: t.player.color ?? "#888" }} />
+                <span className="font-bold uppercase tracking-wide">{t.player.nickname}</span>
               </div>
-              <span className="font-mono text-xl text-emerald-400">{t.total}</span>
+              <span className={`font-mono text-2xl font-black ${i === 0 ? "text-black" : "text-yellow-400"}`}>{t.total}</span>
             </div>
           ))}
         </div>
 
         {isHost && (
           <div className="space-y-2">
-            <Button onClick={playAgain} className="w-full h-12 bg-sky-500 hover:bg-sky-600">Play again</Button>
-            <Button onClick={endGame} variant="outline" className="w-full h-12 border-slate-700 bg-slate-800 hover:bg-slate-700">End game</Button>
+            <Button onClick={playAgain} className="w-full h-14 bg-yellow-400 hover:bg-yellow-300 text-black rounded-none uppercase tracking-widest font-bold">Play again →</Button>
+            <Button onClick={endGame} variant="outline" className="w-full h-14 border-neutral-700 bg-transparent hover:bg-neutral-900 text-white rounded-none uppercase tracking-widest font-bold">End game</Button>
           </div>
         )}
       </div>
