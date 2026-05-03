@@ -561,17 +561,17 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
   // ===== Reveal screen: keep the prior layout =====
   if (isReveal) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white px-4 py-4">
+      <div className="min-h-screen bg-black text-white px-4 py-4">
         <div className="max-w-3xl mx-auto space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-400">Round {room.current_round} of {room.config.total_rounds}</span>
+            <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-500">Round {room.current_round} / {room.config.total_rounds}</span>
           </div>
           {isSubmitter && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 text-sm text-amber-200">
-              📸 This is your photo — your guess didn't count this round.
+            <div className="bg-yellow-400/10 border border-yellow-400/40 px-3 py-2 text-sm text-yellow-300 font-mono uppercase tracking-widest text-xs">
+              ◆ Your photo — your guess didn't count.
             </div>
           )}
-          <img src={publicUrl(photo.storage_path)} alt="" className="w-full max-h-[40vh] object-contain rounded-lg bg-slate-900" />
+          <img src={publicUrl(photo.storage_path)} alt="" className="w-full max-h-[40vh] object-contain bg-neutral-900" />
           <RevealView room={room} round={round} photo={photo} players={players}
             guesses={roundGuesses} submitter={submitter} isHost={isHost} onNext={nextRound} />
         </div>
