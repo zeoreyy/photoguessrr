@@ -140,20 +140,20 @@ function RoomPage() {
     return () => { supabase.removeChannel(ch); };
   }, [room?.id, navigate]);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><Loader2 className="animate-spin" /></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-black text-white"><Loader2 className="animate-spin text-yellow-400" /></div>;
   if (notFound) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+    <div className="min-h-screen flex items-center justify-center bg-black text-white">
       <div className="text-center">
-        <p className="mb-4">Room not found.</p>
-        <Link to="/" className="text-sky-400 underline">Go home</Link>
+        <p className="mb-4 font-mono uppercase tracking-widest text-sm">Room not found.</p>
+        <Link to="/" className="text-yellow-400 underline">Go home</Link>
       </div>
     </div>
   );
   if (!room || !me) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+    <div className="min-h-screen flex items-center justify-center bg-black text-white">
       <div className="text-center">
-        <p className="mb-4">You're not in this room.</p>
-        <Link to="/" className="text-sky-400 underline">Go home</Link>
+        <p className="mb-4 font-mono uppercase tracking-widest text-sm">You're not in this room.</p>
+        <Link to="/" className="text-yellow-400 underline">Go home</Link>
       </div>
     </div>
   );
@@ -224,35 +224,34 @@ function LobbyView({ room, players, photos, me, isHost }: { room: Room; players:
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white px-4 py-6">
+    <div className="min-h-screen bg-black text-white px-4 py-6">
       <div className="max-w-2xl mx-auto space-y-6">
-        <Link to="/" className="inline-flex items-center text-slate-400 hover:text-white text-sm">
+        <Link to="/" className="inline-flex items-center text-neutral-400 hover:text-yellow-400 font-mono text-xs tracking-widest uppercase">
           <ArrowLeft className="w-4 h-4 mr-1" /> Leave
         </Link>
 
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-6 text-center">
-          <p className="text-xs uppercase tracking-widest text-slate-400 mb-2">Room code</p>
+        <div className="bg-neutral-950 border border-neutral-800 p-8 text-center">
+          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-neutral-500 mb-3">◆ Room code</p>
           <button onClick={copyCode} className="inline-flex items-center gap-3 group">
-            <span className="text-5xl font-bold tracking-[0.4em] text-sky-400 group-hover:text-sky-300">{room.code}</span>
-            <Copy className="w-5 h-5 text-slate-400 group-hover:text-white" />
+            <span className="text-5xl sm:text-6xl font-black tracking-[0.4em] text-yellow-400 group-hover:text-yellow-300">{room.code}</span>
+            <Copy className="w-5 h-5 text-neutral-500 group-hover:text-white" />
           </button>
-          <p className="text-xs text-slate-500 mt-2">Tap to copy. Share with friends.</p>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-neutral-600 mt-3">Tap to copy · Share with friends</p>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <h2 className="font-semibold mb-3 text-slate-300">Players</h2>
+        <div className="border border-neutral-800 p-4">
+          <h2 className="font-mono text-[10px] uppercase tracking-widest text-neutral-400 mb-3">Players</h2>
           <div className="space-y-2">
             {players.map((p) => {
               const count = photos.filter((ph) => ph.player_id === p.id && ph.is_pinned).length;
               return (
-                <div key={p.id} className="flex items-center justify-between bg-slate-800/60 rounded-lg px-3 py-2">
+                <div key={p.id} className="flex items-center justify-between bg-neutral-900 px-3 py-2 border-l-2" style={{ borderLeftColor: p.color ?? "#888" }}>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ background: p.color ?? "#888" }} />
                     <span className="font-medium">{p.nickname}</span>
-                    {p.is_host && <span className="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">HOST</span>}
-                    {p.is_ready && <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">READY</span>}
+                    {p.is_host && <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 bg-yellow-400 text-black">Host</span>}
+                    {p.is_ready && <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 border border-yellow-400 text-yellow-400">Ready</span>}
                   </div>
-                  <span className="text-sm text-slate-400">{count}/{room.config.photos_per_player}</span>
+                  <span className="text-sm font-mono text-neutral-500">{count}/{room.config.photos_per_player}</span>
                 </div>
               );
             })}
@@ -262,14 +261,14 @@ function LobbyView({ room, players, photos, me, isHost }: { room: Room; players:
         <UploadSection room={room} me={me} myPhotos={myPhotos} target={target} />
 
         {isHost && !roundsEven && N > 0 && (
-          <p className="text-xs text-amber-300 text-center">
-            For an even split, rounds will be {adjustedRounds} ({adjustedRounds / N} per player).
+          <p className="text-xs text-yellow-400 text-center font-mono uppercase tracking-widest">
+            For an even split, rounds will be {adjustedRounds} ({adjustedRounds / N} per player)
           </p>
         )}
         {isHost && (
           <Button onClick={startGame} disabled={!allReady}
-            className="w-full h-12 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-800 disabled:text-slate-500">
-            {allReady ? "Start Game" : "Waiting for everyone to be ready…"}
+            className="w-full h-14 bg-yellow-400 hover:bg-yellow-300 text-black rounded-none disabled:bg-neutral-900 disabled:text-neutral-600 uppercase tracking-widest font-bold">
+            {allReady ? "Start Game →" : "Waiting for everyone…"}
           </Button>
         )}
       </div>
@@ -331,58 +330,58 @@ function UploadSection({ room, me, myPhotos, target }: { room: Room; me: Player;
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+    <div className="border border-neutral-800 p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-slate-300">Your photos ({myPhotos.length}/{target})</h2>
+        <h2 className="font-mono text-[10px] uppercase tracking-widest text-neutral-400">Your photos · {myPhotos.length}/{target}</h2>
         <Button size="sm" disabled={uploading || myPhotos.length >= target}
           onClick={() => inputRef.current?.click()}
-          className="bg-sky-500 hover:bg-sky-600">
-          <Camera className="w-4 h-4 mr-1" /> {uploading ? "Uploading…" : "Add photos"}
+          className="bg-yellow-400 hover:bg-yellow-300 text-black rounded-none uppercase tracking-widest text-xs font-bold">
+          <Camera className="w-4 h-4 mr-1" /> {uploading ? "Uploading…" : "Add"}
         </Button>
         <input ref={inputRef} type="file" accept="image/*" multiple className="hidden"
           onChange={(e) => handleFiles(e.target.files)} />
       </div>
 
       {myPhotos.length === 0 && (
-        <p className="text-sm text-slate-500 text-center py-6">
-          Add {target} photos. We'll auto-detect GPS for you to confirm — otherwise drop a pin.
+        <p className="text-sm text-neutral-500 text-center py-6 font-mono">
+          Add {target} photos. GPS auto-detected — otherwise drop a pin.
         </p>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {myPhotos.map((p) => {
           const hasGps = p.latitude != null && p.longitude != null;
           const needsConfirm = hasGps && !p.confirmed;
           const needsPin = !hasGps;
           const done = hasGps && p.confirmed;
           return (
-            <div key={p.id} className="bg-slate-800/60 rounded-lg p-3 flex gap-3">
-              <img src={publicUrl(p.storage_path)} alt="" className="w-20 h-20 object-cover rounded" />
+            <div key={p.id} className="bg-neutral-900 p-3 flex gap-3 border-l-2 border-neutral-700">
+              <img src={publicUrl(p.storage_path)} alt="" className="w-20 h-20 object-cover" />
               <div className="flex-1 min-w-0 flex flex-col justify-between">
                 <div>
                   {done && (
-                    <span className="inline-flex items-center text-xs text-emerald-400">
+                    <span className="inline-flex items-center text-[10px] font-mono uppercase tracking-widest text-yellow-400">
                       <Check className="w-3 h-3 mr-1" /> Confirmed
                     </span>
                   )}
                   {needsConfirm && (
-                    <span className="inline-flex items-center text-xs text-sky-400">
-                      <MapPin className="w-3 h-3 mr-1" /> GPS detected — confirm location
+                    <span className="inline-flex items-center text-[10px] font-mono uppercase tracking-widest text-white">
+                      <MapPin className="w-3 h-3 mr-1" /> GPS — confirm
                     </span>
                   )}
                   {needsPin && (
-                    <span className="inline-flex items-center text-xs text-amber-400">
+                    <span className="inline-flex items-center text-[10px] font-mono uppercase tracking-widest text-yellow-400">
                       <MapPin className="w-3 h-3 mr-1" /> Drop a pin
                     </span>
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="border-slate-600 bg-slate-800 hover:bg-slate-700 text-white text-xs h-7"
+                  <Button size="sm" variant="outline" className="border-neutral-700 bg-neutral-900 hover:bg-neutral-800 text-white text-[10px] h-7 rounded-none uppercase tracking-widest"
                     onClick={() => setPinModal(p)}>
                     <MapPin className="w-3 h-3 mr-1" />
-                    {done ? "Edit pin" : needsConfirm ? "Review & confirm" : "Set pin"}
+                    {done ? "Edit" : needsConfirm ? "Review" : "Set pin"}
                   </Button>
-                  <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs h-7"
+                  <Button size="sm" variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs h-7 rounded-none"
                     onClick={() => removePhoto(p)}>
                     <Trash2 className="w-3 h-3" />
                   </Button>
@@ -395,8 +394,10 @@ function UploadSection({ room, me, myPhotos, target }: { room: Room; me: Player;
 
       {myPhotos.length > 0 && (
         <Button onClick={toggleReady} disabled={!allPinned && !me.is_ready}
-          className={me.is_ready ? "w-full bg-slate-700 hover:bg-slate-600" : "w-full bg-emerald-500 hover:bg-emerald-600"}>
-          {me.is_ready ? "I'm not ready" : allPinned ? "I'm ready" : `Pin all photos first`}
+          className={me.is_ready
+            ? "w-full h-12 bg-neutral-800 hover:bg-neutral-700 text-white rounded-none uppercase tracking-widest font-bold"
+            : "w-full h-12 bg-yellow-400 hover:bg-yellow-300 text-black rounded-none uppercase tracking-widest font-bold disabled:bg-neutral-900 disabled:text-neutral-600"}>
+          {me.is_ready ? "Not ready" : allPinned ? "I'm ready" : `Pin all photos first`}
         </Button>
       )}
 
@@ -419,26 +420,26 @@ function PinModal({ photo, onClose }: { photo: Photo; onClose: () => void }) {
   };
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-slate-900 border-slate-800 text-white max-w-2xl">
+      <DialogContent className="bg-black border border-neutral-800 text-white max-w-2xl rounded-none">
         <div className="space-y-3">
-          <p className="text-sm text-slate-300">
+          <p className="text-sm text-neutral-300 font-mono">
             {hadGps
-              ? "We detected GPS in this photo. Confirm the location is correct, or click the map to adjust."
+              ? "GPS detected. Confirm location, or click the map to adjust."
               : "Click the map to drop a pin where this photo was taken."}
           </p>
-          <img src={publicUrl(photo.storage_path)} alt="" className="max-h-48 mx-auto rounded" />
+          <img src={publicUrl(photo.storage_path)} alt="" className="max-h-48 mx-auto" />
           <GameMap
             height="400px"
             pin={pin}
-            pinColor="#0EA5E9"
+            pinColor="#FACC15"
             center={pin ? [pin.lat, pin.lng] : [20, 0]}
             zoom={pin ? 10 : 2}
             onClick={(lat, lng) => setPin({ lat, lng })}
           />
           <div className="flex gap-2 justify-end">
-            <Button variant="outline" onClick={onClose} className="border-slate-700 bg-slate-800">Cancel</Button>
-            <Button onClick={save} disabled={!pin} className="bg-emerald-500 hover:bg-emerald-600">
-              {hadGps ? "Confirm location" : "Save pin"}
+            <Button variant="outline" onClick={onClose} className="border-neutral-700 bg-neutral-900 hover:bg-neutral-800 rounded-none uppercase tracking-widest text-xs">Cancel</Button>
+            <Button onClick={save} disabled={!pin} className="bg-yellow-400 hover:bg-yellow-300 text-black rounded-none uppercase tracking-widest text-xs font-bold">
+              {hadGps ? "Confirm" : "Save pin"}
             </Button>
           </div>
         </div>
@@ -560,17 +561,17 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
   // ===== Reveal screen: keep the prior layout =====
   if (isReveal) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white px-4 py-4">
+      <div className="min-h-screen bg-black text-white px-4 py-4">
         <div className="max-w-3xl mx-auto space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-400">Round {room.current_round} of {room.config.total_rounds}</span>
+            <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-500">Round {room.current_round} / {room.config.total_rounds}</span>
           </div>
           {isSubmitter && (
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2 text-sm text-amber-200">
-              📸 This is your photo — your guess didn't count this round.
+            <div className="bg-yellow-400/10 border border-yellow-400/40 px-3 py-2 text-sm text-yellow-300 font-mono uppercase tracking-widest text-xs">
+              ◆ Your photo — your guess didn't count.
             </div>
           )}
-          <img src={publicUrl(photo.storage_path)} alt="" className="w-full max-h-[40vh] object-contain rounded-lg bg-slate-900" />
+          <img src={publicUrl(photo.storage_path)} alt="" className="w-full max-h-[40vh] object-contain bg-neutral-900" />
           <RevealView room={room} round={round} photo={photo} players={players}
             guesses={roundGuesses} submitter={submitter} isHost={isHost} onNext={nextRound} />
         </div>
@@ -590,23 +591,23 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
 
       {/* Top HUD - always above map */}
       <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-3 py-2 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
-        <span className="text-xs sm:text-sm text-white font-medium drop-shadow-lg bg-black/50 px-2 py-1 rounded">
-          Round {room.current_round}/{room.config.total_rounds}
+        <span className="font-mono text-xs uppercase tracking-widest text-white bg-black px-2 py-1 border border-neutral-700">
+          R{room.current_round}/{room.config.total_rounds}
         </span>
         {inPreview ? (
-          <span className="font-mono text-base sm:text-lg text-amber-300 drop-shadow-lg bg-black/60 px-3 py-1 rounded">
-            Get ready… {previewLeft}s
+          <span className="font-mono text-base sm:text-lg text-black bg-yellow-400 px-3 py-1 font-bold">
+            READY · {previewLeft}s
           </span>
         ) : (
-          <span className={`font-mono text-base sm:text-lg drop-shadow-lg bg-black/60 px-3 py-1 rounded ${timeLeft <= 5 ? "text-red-400" : "text-sky-300"}`}>
-            ⏱ {timeLeft}s
+          <span className={`font-mono text-base sm:text-lg px-3 py-1 font-bold ${timeLeft <= 5 ? "text-white bg-red-500" : "text-black bg-yellow-400"}`}>
+            {timeLeft}s
           </span>
         )}
       </div>
 
       {isSubmitter && (
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-amber-500/90 text-amber-950 text-xs px-3 py-1 rounded-full font-medium shadow-lg pointer-events-none">
-          📸 Your photo — guess won't count
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-yellow-400 text-black text-[10px] font-mono uppercase tracking-widest px-3 py-1 font-bold pointer-events-none">
+          ◆ Your photo
         </div>
       )}
 
@@ -620,11 +621,11 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
           }`}
           onMouseEnter={() => !mapOpen && setMapOpen(true)}
         >
-          <div className="relative flex-1 min-h-0 rounded-lg overflow-hidden border-2 border-white/30 shadow-2xl bg-slate-900">
+          <div className="relative flex-1 min-h-0 overflow-hidden border-2 border-yellow-400 shadow-2xl bg-neutral-900">
             <GameMap
               height="100%"
               pin={pin}
-              pinColor={me.color ?? "#0EA5E9"}
+              pinColor={me.color ?? "#FACC15"}
               onClick={(lat, lng) => !myGuess && setPin({ lat, lng })}
             />
             {!mapOpen && (
@@ -637,27 +638,26 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
             {mapOpen && (
               <button
                 onClick={() => setMapOpen(false)}
-                className="absolute top-1 right-1 z-30 bg-black/80 hover:bg-black text-white text-xs px-3 py-1.5 rounded-full font-medium shadow-lg flex items-center gap-1"
+                className="absolute top-1 right-1 z-30 bg-black hover:bg-neutral-800 border border-yellow-400 text-yellow-400 text-[10px] font-mono uppercase tracking-widest px-3 py-1.5 font-bold flex items-center gap-1"
               >
                 ← Photo
               </button>
             )}
           </div>
 
-          {/* Submit button — sits BELOW map so it never gets covered */}
           {mapOpen && (
             <div className="shrink-0">
               {myGuess ? (
-                <Button disabled className="w-full bg-slate-800/90 text-slate-300 backdrop-blur">
+                <Button disabled className="w-full h-12 bg-neutral-900 text-neutral-400 rounded-none uppercase tracking-widest font-mono text-xs">
                   Waiting for others…
                 </Button>
               ) : (
                 <Button
                   onClick={async () => { await submitGuess(); setMapOpen(false); }}
                   disabled={!pin}
-                  className="w-full h-12 bg-sky-500 hover:bg-sky-600 disabled:bg-slate-800/90 disabled:text-slate-400 shadow-lg text-base font-semibold"
+                  className="w-full h-12 bg-yellow-400 hover:bg-yellow-300 text-black disabled:bg-neutral-900 disabled:text-neutral-500 rounded-none text-base font-bold uppercase tracking-widest"
                 >
-                  {pin ? "Submit guess" : "Tap map to drop pin"}
+                  {pin ? "Submit guess →" : "Tap map to drop pin"}
                 </Button>
               )}
             </div>
@@ -667,8 +667,8 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
 
       {/* Preview overlay */}
       {inPreview && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur px-4 py-2 rounded-full text-sm text-white/90 pointer-events-none">
-          Look carefully… map opens in {previewLeft}s
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black border border-yellow-400 px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-yellow-400 pointer-events-none">
+          Look carefully · map opens in {previewLeft}s
         </div>
       )}
     </div>
@@ -696,42 +696,38 @@ function RevealView({ room, round, photo, players, guesses, submitter, isHost, o
   return (
     <div className="space-y-3">
       <GameMap height="380px" truth={truth} guesses={guessMarkers} fitAll />
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-3">
-        {submitter && <p className="text-xs text-slate-400 mb-2">📸 Submitted by <span className="text-white">{submitter.nickname}</span></p>}
+      <div className="border border-neutral-800 p-3 bg-neutral-950">
+        {submitter && <p className="font-mono text-[10px] uppercase tracking-widest text-neutral-400 mb-2">◆ Submitted by <span className="text-yellow-400">{submitter.nickname}</span></p>}
         <div className="space-y-1">
           {sorted.map((g) => {
             const p = players.find((pl) => pl.id === g.player_id);
             return (
-              <div key={g.id} className="flex items-center justify-between text-sm py-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: p?.color ?? "#888" }} />
-                  <span>{p?.nickname}</span>
-                </div>
-                <div className="flex gap-4 text-slate-400">
+              <div key={g.id} className="flex items-center justify-between text-sm py-1 border-l-2 pl-2" style={{ borderLeftColor: p?.color ?? "#666" }}>
+                <span>{p?.nickname}</span>
+                <div className="flex gap-4 text-neutral-500 font-mono">
                   <span>{g.distance_km?.toFixed(1)} km</span>
-                  <span className="text-emerald-400 font-mono w-12 text-right">{g.points ?? 0}</span>
+                  <span className="text-yellow-400 w-12 text-right">{g.points ?? 0}</span>
                 </div>
               </div>
             );
           })}
           {submitter && (
-            <div className="flex items-center justify-between text-sm py-1 opacity-60">
+            <div className="flex items-center justify-between text-sm py-1 opacity-60 border-l-2 pl-2" style={{ borderLeftColor: submitter.color ?? "#666" }}>
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ background: submitter.color ?? "#888" }} />
                 <span>{submitter.nickname}</span>
-                <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">📸 Submitter</span>
+                <span className="text-[10px] font-mono uppercase tracking-widest px-1.5 py-0.5 bg-yellow-400 text-black">Submitter</span>
               </div>
-              <span className="text-slate-500">—</span>
+              <span className="text-neutral-600 font-mono">—</span>
             </div>
           )}
         </div>
       </div>
       {isHost && (
-        <Button onClick={onNext} className="w-full h-12 bg-sky-500 hover:bg-sky-600">
-          {isLast ? "See final scoreboard" : "Next round"}
+        <Button onClick={onNext} className="w-full h-14 bg-yellow-400 hover:bg-yellow-300 text-black rounded-none uppercase tracking-widest font-bold">
+          {isLast ? "See final scoreboard →" : "Next round →"}
         </Button>
       )}
-      {!isHost && <p className="text-xs text-center text-slate-500">Host will advance soon…</p>}
+      {!isHost && <p className="text-xs text-center text-neutral-500 font-mono uppercase tracking-widest">Host will advance soon…</p>}
     </div>
   );
 }
@@ -767,26 +763,31 @@ function FinalView({ room, players, photos, rounds, guesses, isHost }:
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white px-4 py-6">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold text-center">🏆 Final Scoreboard</h1>
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
+    <div className="min-h-screen bg-black text-white px-4 py-10">
+      <div className="max-w-2xl mx-auto space-y-8">
+        <div>
+          <p className="font-mono text-xs tracking-[0.3em] uppercase text-yellow-400 mb-3">◆ Game Over</p>
+          <h1 className="text-5xl sm:text-6xl font-black uppercase tracking-tighter leading-none">
+            Final<br/>Score.
+          </h1>
+        </div>
+        <div className="border border-neutral-800">
           {totals.map((t, i) => (
-            <div key={t.player.id} className="flex items-center justify-between bg-slate-800/60 rounded-lg px-4 py-3">
-              <div className="flex items-center gap-3">
-                <span className="text-lg font-bold w-6 text-slate-400">#{i + 1}</span>
-                <div className="w-3 h-3 rounded-full" style={{ background: t.player.color ?? "#888" }} />
-                <span className="font-semibold">{t.player.nickname}</span>
+            <div key={t.player.id} className={`flex items-center justify-between px-5 py-4 border-b border-neutral-800 last:border-b-0 ${i === 0 ? "bg-yellow-400 text-black" : "bg-neutral-950"}`}>
+              <div className="flex items-center gap-4">
+                <span className={`font-mono text-2xl font-black ${i === 0 ? "text-black" : "text-neutral-500"}`}>#{i + 1}</span>
+                <div className="w-3 h-3" style={{ background: t.player.color ?? "#888" }} />
+                <span className="font-bold uppercase tracking-wide">{t.player.nickname}</span>
               </div>
-              <span className="font-mono text-xl text-emerald-400">{t.total}</span>
+              <span className={`font-mono text-2xl font-black ${i === 0 ? "text-black" : "text-yellow-400"}`}>{t.total}</span>
             </div>
           ))}
         </div>
 
         {isHost && (
           <div className="space-y-2">
-            <Button onClick={playAgain} className="w-full h-12 bg-sky-500 hover:bg-sky-600">Play again</Button>
-            <Button onClick={endGame} variant="outline" className="w-full h-12 border-slate-700 bg-slate-800 hover:bg-slate-700">End game</Button>
+            <Button onClick={playAgain} className="w-full h-14 bg-yellow-400 hover:bg-yellow-300 text-black rounded-none uppercase tracking-widest font-bold">Play again →</Button>
+            <Button onClick={endGame} variant="outline" className="w-full h-14 border-neutral-700 bg-transparent hover:bg-neutral-900 text-white rounded-none uppercase tracking-widest font-bold">End game</Button>
           </div>
         )}
       </div>
