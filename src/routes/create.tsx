@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getPlayerId } from "@/lib/playerSession";
 import { COLORS, WORLD_SCOPE, generateRoomCode, type RoomConfig } from "@/lib/game";
+import { Logo } from "@/components/Logo";
 
 export const Route = createFileRoute("/create")({
   head: () => ({
@@ -22,25 +23,21 @@ export const Route = createFileRoute("/create")({
 type Errors = { nickname?: string; photos?: string; rounds?: string; timer?: string };
 
 function NumField({ label, value, onChange, hint, error }: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  hint?: string;
-  error?: string;
+  label: string; value: string; onChange: (v: string) => void; hint?: string; error?: string;
 }) {
   return (
     <div>
-      <Label className="block mb-1">{label}</Label>
+      <Label className="block mb-2 uppercase font-mono text-[10px] tracking-widest text-neutral-400">{label}</Label>
       <Input
         type="text"
         inputMode="numeric"
         pattern="[0-9]*"
         value={value}
         onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
-        className="bg-slate-800 border-slate-700 text-lg h-11"
+        className="bg-neutral-900 border-neutral-800 rounded-none text-lg h-12"
       />
-      {hint && !error && <p className="text-xs text-slate-500 mt-1">{hint}</p>}
-      {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
+      {hint && !error && <p className="text-xs text-neutral-500 mt-1 font-mono">{hint}</p>}
+      {error && <p className="text-xs text-red-400 mt-1 font-mono">{error}</p>}
     </div>
   );
 }
@@ -69,32 +66,20 @@ function CreatePage() {
   };
 
   const handleCreate = async () => {
-    console.log("[create] clicked", { nickname, photosPerPlayer, totalRounds, timerSeconds });
     const v = validate();
-    if (!v.ok) {
-      console.warn("[create] validation failed");
-      toast.error("Please fix the highlighted fields");
-      return;
-    }
+    if (!v.ok) { toast.error("Please fix the highlighted fields"); return; }
     setBusy(true);
     try {
       const playerId = getPlayerId();
-      console.log("[create] playerId", playerId);
       let code = "";
       for (let i = 0; i < 5; i++) {
         const candidate = generateRoomCode();
         const { data: existing, error: lookupErr } = await supabase
           .from("rooms").select("id").eq("code", candidate).maybeSingle();
-        if (lookupErr) {
-          console.error("[create] code lookup failed", lookupErr);
-          toast.error(lookupErr.message);
-          setBusy(false);
-          return;
-        }
+        if (lookupErr) { toast.error(lookupErr.message); setBusy(false); return; }
         if (!existing) { code = candidate; break; }
       }
       if (!code) { toast.error("Couldn't allocate room code"); setBusy(false); return; }
-      console.log("[create] allocated code", code);
 
       const config: RoomConfig = {
         photos_per_player: v.photos,
@@ -107,56 +92,56 @@ function CreatePage() {
         .from("rooms")
         .insert({ code, host_id: playerId, config: config as never, state: "lobby" })
         .select().single();
-      console.log("[create] room insert result", { room, error });
       if (error || !room) { toast.error(error?.message ?? "Failed to create room"); setBusy(false); return; }
 
       const { error: pErr } = await supabase.from("players").insert({
         id: playerId, room_id: room.id, nickname: nickname.trim(), is_host: true, color: COLORS[0],
       });
-      console.log("[create] player insert error", pErr);
       if (pErr) { toast.error(pErr.message); setBusy(false); return; }
 
-      console.log("[create] navigating to room", code);
       navigate({ to: "/room/$code", params: { code } });
     } catch (e) {
-      console.error("[create] unexpected error", e);
       toast.error(e instanceof Error ? e.message : "Failed to create room");
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   };
 
   return (
-    <div className="min-h-screen px-4 py-8 bg-slate-950 text-white">
-      <div className="max-w-md mx-auto">
-        <Link to="/" className="inline-flex items-center text-slate-400 hover:text-white mb-6 text-sm">
-          <ArrowLeft className="w-4 h-4 mr-1" /> Back
+    <div className="min-h-screen bg-black text-white">
+      <header className="flex items-center justify-between px-6 sm:px-10 py-5 border-b border-neutral-800">
+        <Link to="/" className="inline-flex items-center gap-2 text-neutral-400 hover:text-yellow-400 font-mono text-xs tracking-widest uppercase">
+          <ArrowLeft className="w-4 h-4" /> Back
         </Link>
-        <h1 className="text-3xl font-bold mb-8">Create Room</h1>
+        <Logo size={32} />
+      </header>
 
-        <div className="space-y-5">
+      <div className="max-w-xl mx-auto px-6 py-12">
+        <p className="font-mono text-xs tracking-[0.3em] uppercase text-yellow-400 mb-4">◆ New Room</p>
+        <h1 className="text-5xl sm:text-6xl font-black uppercase tracking-tighter mb-10 leading-none">
+          Set the<br/>rules.
+        </h1>
+
+        <div className="space-y-6">
           <div>
-            <Label className="block mb-1">Your nickname</Label>
+            <Label className="block mb-2 uppercase font-mono text-[10px] tracking-widest text-neutral-400">Your nickname</Label>
             <Input
               value={nickname} onChange={(e) => setNickname(e.target.value.slice(0, 20))}
-              placeholder="Host name" className="bg-slate-800 border-slate-700 h-11"
+              placeholder="Host name" className="bg-neutral-900 border-neutral-800 rounded-none h-12"
             />
-            {errors.nickname && <p className="text-xs text-red-400 mt-1">{errors.nickname}</p>}
+            {errors.nickname && <p className="text-xs text-red-400 mt-1 font-mono">{errors.nickname}</p>}
           </div>
 
-          <NumField label="Photos per player" value={photosPerPlayer} onChange={setPhotosPerPlayer}
-            hint="3 – 15" error={errors.photos} />
-          <NumField label="Total rounds" value={totalRounds} onChange={setTotalRounds}
-            hint="3 – 15" error={errors.rounds} />
-          <NumField label="Round timer (seconds)" value={timerSeconds} onChange={setTimerSeconds}
-            hint="10 – 120" error={errors.timer} />
+          <NumField label="Photos per player" value={photosPerPlayer} onChange={setPhotosPerPlayer} hint="3 – 15" error={errors.photos} />
+          <NumField label="Total rounds" value={totalRounds} onChange={setTotalRounds} hint="3 – 15" error={errors.rounds} />
+          <NumField label="Round timer (seconds)" value={timerSeconds} onChange={setTimerSeconds} hint="10 – 120" error={errors.timer} />
 
-          <div className="text-xs text-slate-500">
-            Map scope: World (more scopes coming later).
+          <div className="border-l-2 border-yellow-400 pl-3 py-1">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-neutral-500">Map scope</p>
+            <p className="text-sm">World — more scopes coming later</p>
           </div>
+
           <Button onClick={handleCreate} disabled={busy}
-            className="w-full h-12 bg-sky-500 hover:bg-sky-600 mt-4">
-            {busy ? "Creating…" : "Create Room"}
+            className="w-full h-14 bg-yellow-400 hover:bg-yellow-300 text-black rounded-none uppercase tracking-widest font-bold mt-4">
+            {busy ? "Creating…" : "Create Room →"}
           </Button>
         </div>
       </div>
