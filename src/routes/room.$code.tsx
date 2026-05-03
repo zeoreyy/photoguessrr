@@ -420,26 +420,26 @@ function PinModal({ photo, onClose }: { photo: Photo; onClose: () => void }) {
   };
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-slate-900 border-slate-800 text-white max-w-2xl">
+      <DialogContent className="bg-black border border-neutral-800 text-white max-w-2xl rounded-none">
         <div className="space-y-3">
-          <p className="text-sm text-slate-300">
+          <p className="text-sm text-neutral-300 font-mono">
             {hadGps
-              ? "We detected GPS in this photo. Confirm the location is correct, or click the map to adjust."
+              ? "GPS detected. Confirm location, or click the map to adjust."
               : "Click the map to drop a pin where this photo was taken."}
           </p>
-          <img src={publicUrl(photo.storage_path)} alt="" className="max-h-48 mx-auto rounded" />
+          <img src={publicUrl(photo.storage_path)} alt="" className="max-h-48 mx-auto" />
           <GameMap
             height="400px"
             pin={pin}
-            pinColor="#0EA5E9"
+            pinColor="#FACC15"
             center={pin ? [pin.lat, pin.lng] : [20, 0]}
             zoom={pin ? 10 : 2}
             onClick={(lat, lng) => setPin({ lat, lng })}
           />
           <div className="flex gap-2 justify-end">
-            <Button variant="outline" onClick={onClose} className="border-slate-700 bg-slate-800">Cancel</Button>
-            <Button onClick={save} disabled={!pin} className="bg-emerald-500 hover:bg-emerald-600">
-              {hadGps ? "Confirm location" : "Save pin"}
+            <Button variant="outline" onClick={onClose} className="border-neutral-700 bg-neutral-900 hover:bg-neutral-800 rounded-none uppercase tracking-widest text-xs">Cancel</Button>
+            <Button onClick={save} disabled={!pin} className="bg-yellow-400 hover:bg-yellow-300 text-black rounded-none uppercase tracking-widest text-xs font-bold">
+              {hadGps ? "Confirm" : "Save pin"}
             </Button>
           </div>
         </div>
