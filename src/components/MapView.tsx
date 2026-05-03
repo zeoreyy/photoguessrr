@@ -83,20 +83,25 @@ export function GameMap({
   }
 
   return (
-    <div className={className} style={{ height, width: "100%", background: "#0a0a0a" }}>
+    <div className={className} style={{ height, width: "100%", background: "#aadaff" }}>
       <MapContainer
         center={center}
         zoom={zoom}
-        style={{ height: "100%", width: "100%", background: "#0a0a0a" }}
+        style={{ height: "100%", width: "100%", background: "#aadaff" }}
         scrollWheelZoom
         worldCopyJump
         zoomControl
+        minZoom={2}
+        maxBounds={[[-85, -180], [85, 180]]}
+        maxBoundsViscosity={1}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           subdomains="abcd"
-          maxZoom={20}
+          maxZoom={19}
+          maxNativeZoom={19}
+          minZoom={2}
         />
         {onClick && <ClickHandler onClick={onClick} />}
         {pin && (

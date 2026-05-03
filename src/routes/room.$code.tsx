@@ -461,6 +461,7 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
   }, [round?.id]);
 
   // timer (with 5s preview phase before timer starts)
+  const [overtime, setOvertime] = useState(0);
   useEffect(() => {
     if (!round?.started_at || isReveal) return;
     const start = new Date(round.started_at).getTime();
@@ -470,9 +471,11 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
       setPreviewLeft(previewRem);
       if (elapsed < PREVIEW_SECONDS) {
         setTimeLeft(room.config.timer_seconds);
+        setOvertime(0);
       } else {
-        const left = Math.max(0, room.config.timer_seconds - Math.floor(elapsed - PREVIEW_SECONDS));
-        setTimeLeft(left);
+        const remaining = room.config.timer_seconds - (elapsed - PREVIEW_SECONDS);
+        setTimeLeft(Math.max(0, Math.floor(remaining)));
+        setOvertime(remaining < 0 ? -remaining : 0);
       }
     };
     tick();
@@ -482,18 +485,31 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
 
   const inPreview = previewLeft > 0 && !isReveal;
 
+  // auto-submit pin if time is running out and player has a pin but didn't submit
+  const autoSubmitRef = useRef(false);
+  useEffect(() => {
+    if (!round || isReveal || inPreview) return;
+    if (timeLeft === 0 && pin && !myGuess && !isSubmitter && !autoSubmitRef.current) {
+      autoSubmitRef.current = true;
+      submitGuess();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft, pin, myGuess, isReveal, inPreview, isSubmitter]);
+  useEffect(() => { autoSubmitRef.current = false; }, [round?.id]);
+
   // round end check (host drives) — never during preview
   useEffect(() => {
     if (!isHost || !round || isReveal || inPreview) return;
     const nonSubmitters = players.filter((p) => p.id !== photo?.player_id);
     const allSubmitted = nonSubmitters.length > 0 && nonSubmitters.every((p) =>
       roundGuesses.some((g) => g.player_id === p.id));
-    if ((timeLeft === 0 || allSubmitted) && !advancingRef.current) {
+    // Give a 1.5s grace period after timer hits 0 so auto-submits land first
+    if ((allSubmitted || overtime >= 1.5) && !advancingRef.current) {
       advancingRef.current = true;
       endRound();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeLeft, roundGuesses.length, isHost, round?.id, isReveal, inPreview]);
+  }, [timeLeft, overtime, roundGuesses.length, isHost, round?.id, isReveal, inPreview]);
 
   const endRound = async () => {
     if (!round || !photo) return;
@@ -560,17 +576,17 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
         className="absolute inset-0 w-full h-full object-contain bg-black"
       />
 
-      {/* Top HUD */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 py-2 bg-gradient-to-b from-black/70 to-transparent pointer-events-none">
-        <span className="text-xs sm:text-sm text-white/90 font-medium drop-shadow">
+      {/* Top HUD - always above map */}
+      <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-3 py-2 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
+        <span className="text-xs sm:text-sm text-white font-medium drop-shadow-lg bg-black/50 px-2 py-1 rounded">
           Round {room.current_round}/{room.config.total_rounds}
         </span>
         {inPreview ? (
-          <span className="font-mono text-base sm:text-lg text-amber-300 drop-shadow">
+          <span className="font-mono text-base sm:text-lg text-amber-300 drop-shadow-lg bg-black/60 px-3 py-1 rounded">
             Get ready… {previewLeft}s
           </span>
         ) : (
-          <span className={`font-mono text-base sm:text-lg drop-shadow ${timeLeft <= 5 ? "text-red-400" : "text-sky-300"}`}>
+          <span className={`font-mono text-base sm:text-lg drop-shadow-lg bg-black/60 px-3 py-1 rounded ${timeLeft <= 5 ? "text-red-400" : "text-sky-300"}`}>
             ⏱ {timeLeft}s
           </span>
         )}
