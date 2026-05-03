@@ -169,6 +169,10 @@ function RoomPage() {
 function LobbyView({ room, players, photos, me, isHost }: { room: Room; players: Player[]; photos: Photo[]; me: Player; isHost: boolean }) {
   const myPhotos = photos.filter((p) => p.player_id === me.id);
   const target = room.config.photos_per_player;
+  const N = players.length;
+  const R = room.config.total_rounds;
+  const roundsEven = N > 0 && R % N === 0;
+  const adjustedRounds = N > 0 ? Math.ceil(R / N) * N : R;
   const allReady = players.length > 0 && players.every((p) => p.is_ready);
 
   const copyCode = () => {
