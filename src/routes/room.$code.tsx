@@ -261,6 +261,11 @@ function LobbyView({ room, players, photos, me, isHost }: { room: Room; players:
 
         <UploadSection room={room} me={me} myPhotos={myPhotos} target={target} />
 
+        {isHost && !roundsEven && N > 0 && (
+          <p className="text-xs text-amber-300 text-center">
+            For an even split, rounds will be {adjustedRounds} ({adjustedRounds / N} per player).
+          </p>
+        )}
         {isHost && (
           <Button onClick={startGame} disabled={!allReady}
             className="w-full h-12 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-800 disabled:text-slate-500">
