@@ -621,11 +621,11 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
           }`}
           onMouseEnter={() => !mapOpen && setMapOpen(true)}
         >
-          <div className="relative flex-1 min-h-0 rounded-lg overflow-hidden border-2 border-white/30 shadow-2xl bg-slate-900">
+          <div className="relative flex-1 min-h-0 overflow-hidden border-2 border-yellow-400 shadow-2xl bg-neutral-900">
             <GameMap
               height="100%"
               pin={pin}
-              pinColor={me.color ?? "#0EA5E9"}
+              pinColor={me.color ?? "#FACC15"}
               onClick={(lat, lng) => !myGuess && setPin({ lat, lng })}
             />
             {!mapOpen && (
@@ -638,27 +638,26 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
             {mapOpen && (
               <button
                 onClick={() => setMapOpen(false)}
-                className="absolute top-1 right-1 z-30 bg-black/80 hover:bg-black text-white text-xs px-3 py-1.5 rounded-full font-medium shadow-lg flex items-center gap-1"
+                className="absolute top-1 right-1 z-30 bg-black hover:bg-neutral-800 border border-yellow-400 text-yellow-400 text-[10px] font-mono uppercase tracking-widest px-3 py-1.5 font-bold flex items-center gap-1"
               >
                 ← Photo
               </button>
             )}
           </div>
 
-          {/* Submit button — sits BELOW map so it never gets covered */}
           {mapOpen && (
             <div className="shrink-0">
               {myGuess ? (
-                <Button disabled className="w-full bg-slate-800/90 text-slate-300 backdrop-blur">
+                <Button disabled className="w-full h-12 bg-neutral-900 text-neutral-400 rounded-none uppercase tracking-widest font-mono text-xs">
                   Waiting for others…
                 </Button>
               ) : (
                 <Button
                   onClick={async () => { await submitGuess(); setMapOpen(false); }}
                   disabled={!pin}
-                  className="w-full h-12 bg-sky-500 hover:bg-sky-600 disabled:bg-slate-800/90 disabled:text-slate-400 shadow-lg text-base font-semibold"
+                  className="w-full h-12 bg-yellow-400 hover:bg-yellow-300 text-black disabled:bg-neutral-900 disabled:text-neutral-500 rounded-none text-base font-bold uppercase tracking-widest"
                 >
-                  {pin ? "Submit guess" : "Tap map to drop pin"}
+                  {pin ? "Submit guess →" : "Tap map to drop pin"}
                 </Button>
               )}
             </div>
@@ -668,8 +667,8 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
 
       {/* Preview overlay */}
       {inPreview && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur px-4 py-2 rounded-full text-sm text-white/90 pointer-events-none">
-          Look carefully… map opens in {previewLeft}s
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black border border-yellow-400 px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-yellow-400 pointer-events-none">
+          Look carefully · map opens in {previewLeft}s
         </div>
       )}
     </div>
