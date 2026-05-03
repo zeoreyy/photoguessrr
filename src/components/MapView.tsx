@@ -36,6 +36,27 @@ function FitBounds({ bounds }: { bounds: LatLngBoundsExpression | null }) {
   return null;
 }
 
+function InvalidateOnResize() {
+  const map = useMap();
+  useEffect(() => {
+    const container = map.getContainer();
+    const invalidate = () => map.invalidateSize({ animate: false });
+    // Initial fixes — Leaflet often needs a kick after mount/animation.
+    const timers = [50, 200, 500, 1000].map((ms) => window.setTimeout(invalidate, ms));
+    const ro = new ResizeObserver(() => invalidate());
+    ro.observe(container);
+    window.addEventListener("resize", invalidate);
+    window.addEventListener("orientationchange", invalidate);
+    return () => {
+      timers.forEach(clearTimeout);
+      ro.disconnect();
+      window.removeEventListener("resize", invalidate);
+      window.removeEventListener("orientationchange", invalidate);
+    };
+  }, [map]);
+  return null;
+}
+
 export type GuessMarker = {
   lat: number;
   lng: number;
