@@ -224,35 +224,34 @@ function LobbyView({ room, players, photos, me, isHost }: { room: Room; players:
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white px-4 py-6">
+    <div className="min-h-screen bg-black text-white px-4 py-6">
       <div className="max-w-2xl mx-auto space-y-6">
-        <Link to="/" className="inline-flex items-center text-slate-400 hover:text-white text-sm">
+        <Link to="/" className="inline-flex items-center text-neutral-400 hover:text-yellow-400 font-mono text-xs tracking-widest uppercase">
           <ArrowLeft className="w-4 h-4 mr-1" /> Leave
         </Link>
 
-        <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-6 text-center">
-          <p className="text-xs uppercase tracking-widest text-slate-400 mb-2">Room code</p>
+        <div className="bg-neutral-950 border border-neutral-800 p-8 text-center">
+          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-neutral-500 mb-3">◆ Room code</p>
           <button onClick={copyCode} className="inline-flex items-center gap-3 group">
-            <span className="text-5xl font-bold tracking-[0.4em] text-sky-400 group-hover:text-sky-300">{room.code}</span>
-            <Copy className="w-5 h-5 text-slate-400 group-hover:text-white" />
+            <span className="text-5xl sm:text-6xl font-black tracking-[0.4em] text-yellow-400 group-hover:text-yellow-300">{room.code}</span>
+            <Copy className="w-5 h-5 text-neutral-500 group-hover:text-white" />
           </button>
-          <p className="text-xs text-slate-500 mt-2">Tap to copy. Share with friends.</p>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-neutral-600 mt-3">Tap to copy · Share with friends</p>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <h2 className="font-semibold mb-3 text-slate-300">Players</h2>
+        <div className="border border-neutral-800 p-4">
+          <h2 className="font-mono text-[10px] uppercase tracking-widest text-neutral-400 mb-3">Players</h2>
           <div className="space-y-2">
             {players.map((p) => {
               const count = photos.filter((ph) => ph.player_id === p.id && ph.is_pinned).length;
               return (
-                <div key={p.id} className="flex items-center justify-between bg-slate-800/60 rounded-lg px-3 py-2">
+                <div key={p.id} className="flex items-center justify-between bg-neutral-900 px-3 py-2 border-l-2" style={{ borderLeftColor: p.color ?? "#888" }}>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ background: p.color ?? "#888" }} />
                     <span className="font-medium">{p.nickname}</span>
-                    {p.is_host && <span className="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">HOST</span>}
-                    {p.is_ready && <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">READY</span>}
+                    {p.is_host && <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 bg-yellow-400 text-black">Host</span>}
+                    {p.is_ready && <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 border border-yellow-400 text-yellow-400">Ready</span>}
                   </div>
-                  <span className="text-sm text-slate-400">{count}/{room.config.photos_per_player}</span>
+                  <span className="text-sm font-mono text-neutral-500">{count}/{room.config.photos_per_player}</span>
                 </div>
               );
             })}
@@ -262,14 +261,14 @@ function LobbyView({ room, players, photos, me, isHost }: { room: Room; players:
         <UploadSection room={room} me={me} myPhotos={myPhotos} target={target} />
 
         {isHost && !roundsEven && N > 0 && (
-          <p className="text-xs text-amber-300 text-center">
-            For an even split, rounds will be {adjustedRounds} ({adjustedRounds / N} per player).
+          <p className="text-xs text-yellow-400 text-center font-mono uppercase tracking-widest">
+            For an even split, rounds will be {adjustedRounds} ({adjustedRounds / N} per player)
           </p>
         )}
         {isHost && (
           <Button onClick={startGame} disabled={!allReady}
-            className="w-full h-12 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-800 disabled:text-slate-500">
-            {allReady ? "Start Game" : "Waiting for everyone to be ready…"}
+            className="w-full h-14 bg-yellow-400 hover:bg-yellow-300 text-black rounded-none disabled:bg-neutral-900 disabled:text-neutral-600 uppercase tracking-widest font-bold">
+            {allReady ? "Start Game →" : "Waiting for everyone…"}
           </Button>
         )}
       </div>
