@@ -504,12 +504,12 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
     const allSubmitted = nonSubmitters.length > 0 && nonSubmitters.every((p) =>
       roundGuesses.some((g) => g.player_id === p.id));
     // Give a 1.5s grace period after timer hits 0 so auto-submits land first
-    if ((allSubmitted || timeLeft <= -2) && !advancingRef.current) {
+    if ((allSubmitted || overtime >= 1.5) && !advancingRef.current) {
       advancingRef.current = true;
       endRound();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeLeft, roundGuesses.length, isHost, round?.id, isReveal, inPreview]);
+  }, [timeLeft, overtime, roundGuesses.length, isHost, round?.id, isReveal, inPreview]);
 
   const endRound = async () => {
     if (!round || !photo) return;
