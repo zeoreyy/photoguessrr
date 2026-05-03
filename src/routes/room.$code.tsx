@@ -560,17 +560,17 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
         className="absolute inset-0 w-full h-full object-contain bg-black"
       />
 
-      {/* Top HUD */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 py-2 bg-gradient-to-b from-black/70 to-transparent pointer-events-none">
-        <span className="text-xs sm:text-sm text-white/90 font-medium drop-shadow">
+      {/* Top HUD - always above map */}
+      <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-3 py-2 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
+        <span className="text-xs sm:text-sm text-white font-medium drop-shadow-lg bg-black/50 px-2 py-1 rounded">
           Round {room.current_round}/{room.config.total_rounds}
         </span>
         {inPreview ? (
-          <span className="font-mono text-base sm:text-lg text-amber-300 drop-shadow">
+          <span className="font-mono text-base sm:text-lg text-amber-300 drop-shadow-lg bg-black/60 px-3 py-1 rounded">
             Get ready… {previewLeft}s
           </span>
         ) : (
-          <span className={`font-mono text-base sm:text-lg drop-shadow ${timeLeft <= 5 ? "text-red-400" : "text-sky-300"}`}>
+          <span className={`font-mono text-base sm:text-lg drop-shadow-lg bg-black/60 px-3 py-1 rounded ${timeLeft <= 5 ? "text-red-400" : "text-sky-300"}`}>
             ⏱ {timeLeft}s
           </span>
         )}
