@@ -696,42 +696,38 @@ function RevealView({ room, round, photo, players, guesses, submitter, isHost, o
   return (
     <div className="space-y-3">
       <GameMap height="380px" truth={truth} guesses={guessMarkers} fitAll />
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-3">
-        {submitter && <p className="text-xs text-slate-400 mb-2">📸 Submitted by <span className="text-white">{submitter.nickname}</span></p>}
+      <div className="border border-neutral-800 p-3 bg-neutral-950">
+        {submitter && <p className="font-mono text-[10px] uppercase tracking-widest text-neutral-400 mb-2">◆ Submitted by <span className="text-yellow-400">{submitter.nickname}</span></p>}
         <div className="space-y-1">
           {sorted.map((g) => {
             const p = players.find((pl) => pl.id === g.player_id);
             return (
-              <div key={g.id} className="flex items-center justify-between text-sm py-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: p?.color ?? "#888" }} />
-                  <span>{p?.nickname}</span>
-                </div>
-                <div className="flex gap-4 text-slate-400">
+              <div key={g.id} className="flex items-center justify-between text-sm py-1 border-l-2 pl-2" style={{ borderLeftColor: p?.color ?? "#666" }}>
+                <span>{p?.nickname}</span>
+                <div className="flex gap-4 text-neutral-500 font-mono">
                   <span>{g.distance_km?.toFixed(1)} km</span>
-                  <span className="text-emerald-400 font-mono w-12 text-right">{g.points ?? 0}</span>
+                  <span className="text-yellow-400 w-12 text-right">{g.points ?? 0}</span>
                 </div>
               </div>
             );
           })}
           {submitter && (
-            <div className="flex items-center justify-between text-sm py-1 opacity-60">
+            <div className="flex items-center justify-between text-sm py-1 opacity-60 border-l-2 pl-2" style={{ borderLeftColor: submitter.color ?? "#666" }}>
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ background: submitter.color ?? "#888" }} />
                 <span>{submitter.nickname}</span>
-                <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">📸 Submitter</span>
+                <span className="text-[10px] font-mono uppercase tracking-widest px-1.5 py-0.5 bg-yellow-400 text-black">Submitter</span>
               </div>
-              <span className="text-slate-500">—</span>
+              <span className="text-neutral-600 font-mono">—</span>
             </div>
           )}
         </div>
       </div>
       {isHost && (
-        <Button onClick={onNext} className="w-full h-12 bg-sky-500 hover:bg-sky-600">
-          {isLast ? "See final scoreboard" : "Next round"}
+        <Button onClick={onNext} className="w-full h-14 bg-yellow-400 hover:bg-yellow-300 text-black rounded-none uppercase tracking-widest font-bold">
+          {isLast ? "See final scoreboard →" : "Next round →"}
         </Button>
       )}
-      {!isHost && <p className="text-xs text-center text-slate-500">Host will advance soon…</p>}
+      {!isHost && <p className="text-xs text-center text-neutral-500 font-mono uppercase tracking-widest">Host will advance soon…</p>}
     </div>
   );
 }
