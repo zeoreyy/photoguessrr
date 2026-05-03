@@ -140,20 +140,20 @@ function RoomPage() {
     return () => { supabase.removeChannel(ch); };
   }, [room?.id, navigate]);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white"><Loader2 className="animate-spin" /></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-black text-white"><Loader2 className="animate-spin text-yellow-400" /></div>;
   if (notFound) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+    <div className="min-h-screen flex items-center justify-center bg-black text-white">
       <div className="text-center">
-        <p className="mb-4">Room not found.</p>
-        <Link to="/" className="text-sky-400 underline">Go home</Link>
+        <p className="mb-4 font-mono uppercase tracking-widest text-sm">Room not found.</p>
+        <Link to="/" className="text-yellow-400 underline">Go home</Link>
       </div>
     </div>
   );
   if (!room || !me) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+    <div className="min-h-screen flex items-center justify-center bg-black text-white">
       <div className="text-center">
-        <p className="mb-4">You're not in this room.</p>
-        <Link to="/" className="text-sky-400 underline">Go home</Link>
+        <p className="mb-4 font-mono uppercase tracking-widest text-sm">You're not in this room.</p>
+        <Link to="/" className="text-yellow-400 underline">Go home</Link>
       </div>
     </div>
   );
