@@ -169,6 +169,10 @@ function RoomPage() {
 function LobbyView({ room, players, photos, me, isHost }: { room: Room; players: Player[]; photos: Photo[]; me: Player; isHost: boolean }) {
   const myPhotos = photos.filter((p) => p.player_id === me.id);
   const target = room.config.photos_per_player;
+  const N = players.length;
+  const R = room.config.total_rounds;
+  const roundsEven = N > 0 && R % N === 0;
+  const adjustedRounds = N > 0 ? Math.ceil(R / N) * N : R;
   const allReady = players.length > 0 && players.every((p) => p.is_ready);
 
   const copyCode = () => {
@@ -179,22 +183,19 @@ function LobbyView({ room, players, photos, me, isHost }: { room: Room; players:
   const startGame = async () => {
     console.log("[start] clicked", { players: players.length, photos: photos.length, config: room.config });
     try {
-      const N = players.length, R = room.config.total_rounds;
+      const N = players.length;
       if (N === 0) { toast.error("No players"); return; }
-      const base = Math.floor(R / N);
-      const remainder = R % N;
-      const shuffled = [...players].sort(() => Math.random() - 0.5);
-      const counts = new Map(shuffled.map((p, i) => [p.id, base + (i < remainder ? 1 : 0)]));
+      // Force rounds to be evenly divisible by player count
+      const R = Math.ceil(room.config.total_rounds / N) * N;
+      const perPlayer = R / N;
       const chosen: Photo[] = [];
       for (const p of players) {
         const pool = photos.filter((ph) => ph.player_id === p.id && ph.is_pinned);
-        const need = counts.get(p.id) ?? 0;
-        console.log("[start] player", p.nickname, "needs", need, "has pinned", pool.length);
-        const picked = pool.sort(() => Math.random() - 0.5).slice(0, need);
-        if (picked.length < need) {
-          toast.error(`${p.nickname} doesn't have enough pinned photos (${pool.length}/${need})`);
+        if (pool.length < perPlayer) {
+          toast.error(`${p.nickname} doesn't have enough pinned photos (${pool.length}/${perPlayer})`);
           return;
         }
+        const picked = pool.sort(() => Math.random() - 0.5).slice(0, perPlayer);
         chosen.push(...picked);
       }
       chosen.sort(() => Math.random() - 0.5);
@@ -202,6 +203,12 @@ function LobbyView({ room, players, photos, me, isHost }: { room: Room; players:
         room_id: room.id, round_number: i + 1, photo_id: ph.id,
       }));
       console.log("[start] inserting", roundRows.length, "rounds");
+      // If we bumped the rounds count, persist it back to room config
+      if (R !== room.config.total_rounds) {
+        await supabase.from("rooms").update({
+          config: { ...room.config, total_rounds: R } as never,
+        }).eq("id", room.id);
+      }
       const { error: rErr } = await supabase.from("rounds").insert(roundRows);
       if (rErr) { console.error("[start] rounds insert failed", rErr); toast.error(rErr.message); return; }
       const { error: r1Err } = await supabase.from("rounds").update({ started_at: new Date().toISOString() })
@@ -254,6 +261,11 @@ function LobbyView({ room, players, photos, me, isHost }: { room: Room; players:
 
         <UploadSection room={room} me={me} myPhotos={myPhotos} target={target} />
 
+        {isHost && !roundsEven && N > 0 && (
+          <p className="text-xs text-amber-300 text-center">
+            For an even split, rounds will be {adjustedRounds} ({adjustedRounds / N} per player).
+          </p>
+        )}
         {isHost && (
           <Button onClick={startGame} disabled={!allReady}
             className="w-full h-12 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-800 disabled:text-slate-500">

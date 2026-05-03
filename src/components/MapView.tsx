@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents, Polyline, Popup } from "react-leaflet";
 import L, { LatLngBoundsExpression, LatLngExpression } from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -33,6 +33,27 @@ function FitBounds({ bounds }: { bounds: LatLngBoundsExpression | null }) {
   useEffect(() => {
     if (bounds) map.fitBounds(bounds, { padding: [40, 40] });
   }, [bounds, map]);
+  return null;
+}
+
+function InvalidateOnResize() {
+  const map = useMap();
+  useEffect(() => {
+    const container = map.getContainer();
+    const invalidate = () => map.invalidateSize({ animate: false });
+    // Initial fixes — Leaflet often needs a kick after mount/animation.
+    const timers = [50, 200, 500, 1000].map((ms) => window.setTimeout(invalidate, ms));
+    const ro = new ResizeObserver(() => invalidate());
+    ro.observe(container);
+    window.addEventListener("resize", invalidate);
+    window.addEventListener("orientationchange", invalidate);
+    return () => {
+      timers.forEach(clearTimeout);
+      ro.disconnect();
+      window.removeEventListener("resize", invalidate);
+      window.removeEventListener("orientationchange", invalidate);
+    };
+  }, [map]);
   return null;
 }
 
@@ -82,8 +103,10 @@ export function GameMap({
     }
   }
 
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
   return (
-    <div className={className} style={{ height, width: "100%", background: "#aadaff" }}>
+    <div ref={wrapperRef} className={className} style={{ height, width: "100%", background: "#aadaff", position: "relative" }}>
       <MapContainer
         center={center}
         zoom={zoom}
@@ -102,7 +125,12 @@ export function GameMap({
           maxZoom={19}
           maxNativeZoom={19}
           minZoom={2}
+          tileSize={256}
+          updateWhenIdle={false}
+          keepBuffer={4}
+          crossOrigin
         />
+        <InvalidateOnResize />
         {onClick && <ClickHandler onClick={onClick} />}
         {pin && (
           <Marker position={[pin.lat, pin.lng]} icon={coloredIcon(pinColor, pinLabel)} />
