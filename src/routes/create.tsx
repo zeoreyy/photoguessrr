@@ -106,7 +106,7 @@ function CreatePage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-neutral-900 text-white">
       <header className="flex items-center justify-between px-6 sm:px-10 py-5 border-b border-neutral-800">
         <Link to="/" className="inline-flex items-center gap-2 text-neutral-400 hover:text-yellow-400 font-mono text-xs tracking-widest uppercase">
           <ArrowLeft className="w-4 h-4" /> Back

@@ -60,7 +60,7 @@ function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className="min-h-screen bg-neutral-900 text-white flex flex-col">
       {/* Top bar */}
       <header className="flex items-center justify-between px-6 sm:px-10 py-5 border-b border-neutral-800">
         <div className="flex items-center gap-3">
@@ -127,7 +127,7 @@ function HomePage() {
       </footer>
 
       <Dialog open={joinOpen} onOpenChange={setJoinOpen}>
-        <DialogContent className="bg-black border border-neutral-800 text-white rounded-none">
+        <DialogContent className="bg-neutral-900 border border-neutral-800 text-white rounded-none">
           <DialogHeader>
             <DialogTitle className="uppercase tracking-widest font-mono text-sm text-yellow-400">
               Join a room

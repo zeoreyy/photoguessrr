@@ -140,9 +140,9 @@ function RoomPage() {
     return () => { supabase.removeChannel(ch); };
   }, [room?.id, navigate]);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-black text-white"><Loader2 className="animate-spin text-yellow-400" /></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-neutral-900 text-white"><Loader2 className="animate-spin text-yellow-400" /></div>;
   if (notFound) return (
-    <div className="min-h-screen flex items-center justify-center bg-black text-white">
+    <div className="min-h-screen flex items-center justify-center bg-neutral-900 text-white">
       <div className="text-center">
         <p className="mb-4 font-mono uppercase tracking-widest text-sm">Room not found.</p>
         <Link to="/" className="text-yellow-400 underline">Go home</Link>
@@ -150,7 +150,7 @@ function RoomPage() {
     </div>
   );
   if (!room || !me) return (
-    <div className="min-h-screen flex items-center justify-center bg-black text-white">
+    <div className="min-h-screen flex items-center justify-center bg-neutral-900 text-white">
       <div className="text-center">
         <p className="mb-4 font-mono uppercase tracking-widest text-sm">You're not in this room.</p>
         <Link to="/" className="text-yellow-400 underline">Go home</Link>
@@ -224,7 +224,7 @@ function LobbyView({ room, players, photos, me, isHost }: { room: Room; players:
   };
 
   return (
-    <div className="min-h-screen bg-black text-white px-4 py-6">
+    <div className="min-h-screen bg-neutral-900 text-white px-4 py-6">
       <div className="max-w-2xl mx-auto space-y-6">
         <Link to="/" className="inline-flex items-center text-neutral-400 hover:text-yellow-400 font-mono text-xs tracking-widest uppercase">
           <ArrowLeft className="w-4 h-4 mr-1" /> Leave
@@ -420,7 +420,7 @@ function PinModal({ photo, onClose }: { photo: Photo; onClose: () => void }) {
   };
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-black border border-neutral-800 text-white max-w-2xl rounded-none">
+      <DialogContent className="bg-neutral-900 border border-neutral-800 text-white max-w-2xl rounded-none">
         <div className="space-y-3">
           <p className="text-sm text-neutral-300 font-mono">
             {hadGps
@@ -561,7 +561,7 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
   // ===== Reveal screen: keep the prior layout =====
   if (isReveal) {
     return (
-      <div className="min-h-screen bg-black text-white px-4 py-4">
+      <div className="min-h-screen bg-neutral-900 text-white px-4 py-4">
         <div className="max-w-3xl mx-auto space-y-3">
           <div className="flex items-center justify-between">
             <span className="font-mono text-[10px] uppercase tracking-widest text-neutral-500">Round {room.current_round} / {room.config.total_rounds}</span>
@@ -763,7 +763,7 @@ function FinalView({ room, players, photos, rounds, guesses, isHost }:
   };
 
   return (
-    <div className="min-h-screen bg-black text-white px-4 py-10">
+    <div className="min-h-screen bg-neutral-900 text-white px-4 py-10">
       <div className="max-w-2xl mx-auto space-y-8">
         <div>
           <p className="font-mono text-xs tracking-[0.3em] uppercase text-yellow-400 mb-3">◆ Game Over</p>
