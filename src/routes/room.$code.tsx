@@ -49,6 +49,7 @@ type Round = { id: string; room_id: string; round_number: number; photo_id: stri
 type Guess = { id: string; round_id: string; player_id: string; latitude: number; longitude: number; distance_km: number | null; points: number | null; is_submitter: boolean };
 
 function publicUrl(path: string) {
+  if (path.startsWith("http")) return path;
   return supabase.storage.from("photos").getPublicUrl(path).data.publicUrl;
 }
 
@@ -158,7 +159,10 @@ function RoomPage() {
     </div>
   );
 
-  if (room.state === "lobby") return <LobbyView room={room} players={players} photos={photos} me={me} isHost={isHost} />;
+  if (room.state === "lobby") {
+    if (room.config.is_solo) return <SoloLobbyView room={room} players={players} isHost={isHost} />;
+    return <LobbyView room={room} players={players} photos={photos} me={me} isHost={isHost} />;
+  }
   if (room.state === "playing") return <GameView room={room} players={players} photos={photos} rounds={rounds} guesses={guesses} me={me} isHost={isHost} />;
   if (room.state === "finished") return <FinalView room={room} players={players} photos={photos} rounds={rounds} guesses={guesses} isHost={isHost} />;
   return null;
@@ -445,6 +449,80 @@ function PinModal({ photo, onClose }: { photo: Photo; onClose: () => void }) {
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/* ================= SOLO LOBBY ================= */
+
+function SoloLobbyView({ room, players, isHost }: { room: Room; players: Player[]; isHost: boolean }) {
+  const [starting, setStarting] = useState(false);
+
+  const startSoloGame = async () => {
+    setStarting(true);
+    try {
+      const bot = players.find((p) => !p.is_host);
+      if (!bot) { toast.error("Bot player not found"); return; }
+
+      const { data: botPhotos } = await supabase
+        .from("photos").select("*").eq("room_id", room.id).eq("player_id", bot.id);
+
+      if (!botPhotos || botPhotos.length === 0) { toast.error("No photos found"); return; }
+
+      const shuffled = (botPhotos as Photo[]).sort(() => Math.random() - 0.5).slice(0, room.config.total_rounds);
+      const roundRows = shuffled.map((ph, i) => ({ room_id: room.id, round_number: i + 1, photo_id: ph.id }));
+
+      const { error: rErr } = await supabase.from("rounds").insert(roundRows);
+      if (rErr) { toast.error(rErr.message); return; }
+      await supabase.from("rounds").update({ started_at: new Date().toISOString() })
+        .eq("room_id", room.id).eq("round_number", 1);
+      await supabase.from("rooms").update({ state: "playing", current_round: 1 }).eq("id", room.id);
+    } catch {
+      toast.error("Failed to start");
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-neutral-900 text-white px-4 py-6">
+      <div className="max-w-md mx-auto space-y-6">
+        <Link to="/" className="inline-flex items-center text-neutral-400 hover:text-yellow-400 font-mono text-xs tracking-widest uppercase">
+          <ArrowLeft className="w-4 h-4 mr-1" /> Leave
+        </Link>
+
+        <div className="bg-neutral-950 border border-neutral-800 p-6 text-center">
+          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-yellow-400 mb-1">◆ Solo Test Mode</p>
+          <p className="text-2xl font-black uppercase tracking-widest">
+            {room.config.total_rounds} rounds · {room.config.timer_seconds}s each
+          </p>
+        </div>
+
+        <div className="border border-neutral-800 p-4">
+          <h2 className="font-mono text-[10px] uppercase tracking-widest text-neutral-400 mb-3">Players</h2>
+          <div className="space-y-2">
+            {players.map((p) => (
+              <div key={p.id} className="flex items-center gap-3 bg-neutral-800 px-3 py-2 border-l-2" style={{ borderLeftColor: p.color ?? "#888" }}>
+                <span className="font-medium">{p.nickname}</span>
+                {p.is_host
+                  ? <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 bg-yellow-400 text-black">You</span>
+                  : <span className="text-[10px] font-mono uppercase tracking-widest px-2 py-0.5 border border-neutral-600 text-neutral-400">Bot</span>
+                }
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {isHost && (
+          <Button
+            onClick={startSoloGame}
+            disabled={starting}
+            className="w-full h-14 bg-yellow-400 hover:bg-yellow-300 text-black rounded-none disabled:bg-neutral-800 disabled:text-neutral-600 uppercase tracking-widest font-bold"
+          >
+            {starting ? "Starting…" : "Start Game →"}
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }
 

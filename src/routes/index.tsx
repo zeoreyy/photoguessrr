@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -105,6 +105,11 @@ function HomePage() {
               Join Room
             </Button>
           </div>
+          <p className="mt-5">
+            <Link to="/solo" className="font-mono text-xs tracking-widest text-neutral-500 hover:text-yellow-400 uppercase underline underline-offset-4">
+              Solo Test Mode
+            </Link>
+          </p>
         </section>
 
         <aside className="lg:col-span-4 px-6 sm:px-10 py-12 lg:py-24 flex flex-col gap-10">
