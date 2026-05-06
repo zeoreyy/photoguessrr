@@ -716,7 +716,7 @@ function GameView({ room, players, photos, rounds, guesses, me, isHost }:
             {mapOpen && (
               <button
                 onClick={() => setMapOpen(false)}
-                className="absolute top-1 right-1 z-30 bg-black hover:bg-neutral-800 border border-yellow-400 text-yellow-400 text-[10px] font-mono uppercase tracking-widest px-3 py-1.5 font-bold flex items-center gap-1"
+                className="absolute top-1 right-1 z-[1001] bg-black hover:bg-neutral-800 border border-yellow-400 text-yellow-400 text-[10px] font-mono uppercase tracking-widest px-3 py-1.5 font-bold flex items-center gap-1"
               >
                 ← Photo
               </button>
@@ -824,14 +824,16 @@ function FinalView({ room, players, photos, rounds, guesses, isHost }:
   }, [players, guesses]);
 
   const playAgain = async () => {
-    // Delete photos from storage
-    const paths = photos.map((p) => p.storage_path);
-    if (paths.length) await supabase.storage.from("photos").remove(paths);
-    await supabase.from("guesses").delete().in("round_id", rounds.map((r) => r.id));
-    await supabase.from("rounds").delete().eq("room_id", room.id);
-    await supabase.from("photos").delete().eq("room_id", room.id);
-    await supabase.from("players").update({ is_ready: false }).eq("room_id", room.id);
-    await supabase.from("rooms").update({ state: "lobby", current_round: 0 }).eq("id", room.id);
+    try {
+      const paths = photos.map((p) => p.storage_path);
+      if (paths.length) supabase.storage.from("photos").remove(paths); // fire-and-forget cleanup
+      await supabase.from("rounds").delete().eq("room_id", room.id); // guesses cascade-delete
+      await supabase.from("photos").delete().eq("room_id", room.id);
+      await supabase.from("players").update({ is_ready: false }).eq("room_id", room.id);
+      await supabase.from("rooms").update({ state: "lobby", current_round: 0 }).eq("id", room.id);
+    } catch (e) {
+      toast.error("Failed to restart — please try again");
+    }
   };
 
   const endGame = async () => {
