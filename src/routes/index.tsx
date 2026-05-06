@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -131,6 +131,8 @@ function HomePage() {
         <span>Black · Grey · Yellow</span>
       </footer>
 
+      <AddToHomeScreenBanner />
+
       <Dialog open={joinOpen} onOpenChange={setJoinOpen}>
         <DialogContent className="bg-neutral-900 border border-neutral-800 text-white rounded-none">
           <DialogHeader>
@@ -170,6 +172,59 @@ function HomePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function AddToHomeScreenBanner() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia("(display-mode: standalone)").matches) return;
+    const ua = navigator.userAgent;
+    if (!/iphone|ipad|ipod/i.test(ua)) return;
+    if (/crios|fxios|opios|chrome/i.test(ua)) return;
+    if (!/safari/i.test(ua)) return;
+    if (localStorage.getItem("a2hs-dismissed") === "1") return;
+    setVisible(true);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-neutral-900 border-t-2 border-yellow-400 px-5 py-4 flex items-center gap-4">
+      <div className="flex-1 min-w-0">
+        <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-yellow-400 mb-1">
+          Add to Home Screen
+        </p>
+        <p className="text-xs text-neutral-400 leading-relaxed">
+          Tap{" "}
+          <svg
+            className="inline-block align-middle mx-0.5"
+            width="13"
+            height="15"
+            viewBox="0 0 13 15"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden
+          >
+            <path d="M6.5 1v9M3 4.5L6.5 1 10 4.5" stroke="#fff" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"/>
+            <path d="M1 7v6.5h11V7" stroke="#fff" strokeWidth="1.5" strokeLinecap="square"/>
+          </svg>{" "}
+          then{" "}
+          <span className="text-white font-semibold">"Add to Home Screen"</span>
+        </p>
+      </div>
+      <button
+        onClick={() => {
+          localStorage.setItem("a2hs-dismissed", "1");
+          setVisible(false);
+        }}
+        className="shrink-0 text-neutral-500 hover:text-white font-mono text-sm leading-none px-1 py-1"
+        aria-label="Dismiss"
+      >
+        ✕
+      </button>
     </div>
   );
 }
